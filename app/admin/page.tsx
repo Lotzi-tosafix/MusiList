@@ -4,22 +4,42 @@ import { useState, useEffect } from 'react';
 import { Settings, Users, Music, Tag, AlertCircle, Loader2 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { PlaylistWithVideos } from '@/lib/api';
+import { User } from '@supabase/supabase-js';
+import { useRouter } from 'next/navigation';
 
 export default function AdminDashboard() {
-  const [email, setEmail] = useState('');
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [error, setError] = useState('');
+  const router = useRouter();
+  const [user, setUser] = useState<User | null>(null);
   const [playlists, setPlaylists] = useState<PlaylistWithVideos[]>([]);
   const [tags, setTags] = useState<string[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (isAuthenticated) {
-      fetchData();
-    }
-  }, [isAuthenticated]);
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+      if (session?.user) {
+        fetchData();
+      } else {
+        setLoading(false);
+      }
+    });
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+      if (session?.user) {
+        fetchData();
+      } else {
+        setLoading(false);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
 
   const fetchData = async () => {
+    setLoading(true);
     const { data: pData } = await supabase.from('playlists').select('*, videos(*)').order('created_at', { ascending: false });
     if (pData) {
       setPlaylists(pData as any);
@@ -30,13 +50,13 @@ export default function AdminDashboard() {
       });
       setTags(Array.from(tagSet));
     }
+    setLoading(false);
   };
 
   const handleDeletePlaylist = async (id: string) => {
     if (!confirm('האם אתה בטוח שברצונך למחוק פלייליסט זה?')) return;
     
     try {
-      // Delete child rows first since we don't have CASCADE enabled by default
       await supabase.from('playlist_plays').delete().eq('playlist_id', id);
       await supabase.from('videos').delete().eq('playlist_id', id);
       
@@ -50,49 +70,44 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleLogin = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (email.toLowerCase() === 'y0527148273@gmail.com') {
-      setIsAuthenticated(true);
-      setError('');
-    } else {
-      setError('אין לך הרשאות גישה לממשק הניהול.');
-    }
+  const handleLogin = async () => {
+    await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: window.location.origin + '/admin',
+      },
+    });
   };
 
-  if (!isAuthenticated) {
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[50vh]">
+        <Loader2 className="w-8 h-8 text-violet-500 animate-spin" />
+      </div>
+    );
+  }
+
+  const isAdmin = user?.email?.toLowerCase() === 'y0527148273@gmail.com';
+
+  if (!isAdmin) {
     return (
       <div className="max-w-md mx-auto mt-20 p-8 bg-slate-900/60 rounded-3xl shadow-2xl border border-slate-800 text-center">
         <div className="w-16 h-16 bg-violet-900/50 text-violet-400 rounded-2xl flex items-center justify-center mx-auto mb-6">
           <Settings className="w-8 h-8" />
         </div>
         <h1 className="text-2xl font-bold text-white mb-2">כניסה לממשק ניהול</h1>
-        <p className="text-slate-400 mb-8">אנא הזן את כתובת המייל המורשית</p>
+        <p className="text-slate-400 mb-8">
+          {user ? `מחובר כ: ${user.email}. אין לך הרשאות ניהול.` : 'רק מנהלים מורשים יכולים לגשת לעמוד זה.'}
+        </p>
         
-        <form onSubmit={handleLogin} className="space-y-4">
-          <div>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="כתובת אימייל"
-              className="w-full px-4 py-3 rounded-xl bg-slate-900 border border-slate-700 text-white focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 outline-none transition-all shadow-inner"
-              required
-            />
-          </div>
-          {error && (
-            <div className="flex items-center gap-2 text-red-400 text-sm bg-red-900/30 border border-red-500/30 p-3 rounded-lg">
-              <AlertCircle className="w-4 h-4" />
-              {error}
-            </div>
-          )}
+        {!user && (
           <button
-            type="submit"
-            className="w-full bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-medium py-3 rounded-xl transition-all shadow-lg shadow-violet-500/20"
+            onClick={handleLogin}
+            className="w-full bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-medium py-3 rounded-xl transition-all shadow-lg shadow-violet-500/20 flex justify-center items-center gap-2"
           >
-            התחבר
+            התחבר עם גוגל
           </button>
-        </form>
+        )}
       </div>
     );
   }
@@ -105,7 +120,7 @@ export default function AdminDashboard() {
           <p className="text-slate-400">שלום, y0527148273@gmail.com</p>
         </div>
         <button
-          onClick={() => setIsAuthenticated(false)}
+          onClick={() => supabase.auth.signOut()}
           className="px-4 py-2 text-sm font-medium text-slate-400 hover:bg-slate-800 hover:text-white rounded-lg transition-colors"
         >
           התנתק

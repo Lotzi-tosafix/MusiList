@@ -1,14 +1,17 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Youtube, Search, Plus, X, Loader2, AlertCircle } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
+import { User } from '@supabase/supabase-js';
 
 const POPULAR_TAGS = ["שבת", "חג", "שקט", "דאנס", "אברהם פריד", "חנן בן ארי", "ישי ריבו", "קצבי", "רגש", "ווקאלי", "למידה"];
 
 export default function CreatePlaylist() {
   const router = useRouter();
+  const [user, setUser] = useState<User | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
   const [url, setUrl] = useState('');
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState(1);
@@ -19,6 +22,21 @@ export default function CreatePlaylist() {
   const [playlistTitle, setPlaylistTitle] = useState('');
   const [playlistDescription, setPlaylistDescription] = useState('');
   
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+      setAuthLoading(false);
+    });
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
   const suggestedTags = POPULAR_TAGS.filter(t => t.includes(tagInput) && !tags.includes(t));
 
   const handleImport = async (e: React.FormEvent) => {
@@ -65,7 +83,8 @@ export default function CreatePlaylist() {
           description: playlistDescription,
           tags,
           is_public: true,
-          play_count: 0
+          play_count: 0,
+          creator_id: user?.id || null
         }])
         .select()
         .single();
@@ -101,6 +120,35 @@ export default function CreatePlaylist() {
       setTagInput('');
     }
   };
+
+  if (authLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[50vh]">
+        <Loader2 className="w-8 h-8 text-violet-500 animate-spin" />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="max-w-md mx-auto mt-20 p-8 bg-slate-900/60 rounded-3xl shadow-2xl border border-slate-800 text-center">
+        <div className="w-16 h-16 bg-violet-900/50 text-violet-400 rounded-2xl flex items-center justify-center mx-auto mb-6">
+          <Youtube className="w-8 h-8" />
+        </div>
+        <h1 className="text-2xl font-bold text-white mb-2">ייבוא פלייליסט</h1>
+        <p className="text-slate-400 mb-8">
+          כדי לייבא ולערוך פלייליסטים, אנא התחבר לחשבונך.
+        </p>
+        
+        <button
+          onClick={() => supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.origin + '/create' } })}
+          className="w-full bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-medium py-3 rounded-xl transition-all shadow-lg shadow-violet-500/20 flex justify-center items-center gap-2"
+        >
+          התחבר עם גוגל
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-2xl mx-auto mt-8">

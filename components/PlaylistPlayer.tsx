@@ -1,14 +1,80 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Image from 'next/image';
-import { Play, Copy, Clock } from 'lucide-react';
+import { Play, Copy, Clock, Loader2 } from 'lucide-react';
 import { PlaylistWithVideos, VideoRow } from '@/lib/api';
 import { useRouter } from 'next/navigation';
+import { supabase } from '@/lib/supabase';
+import { User } from '@supabase/supabase-js';
 
 export default function PlaylistPlayer({ playlist }: { playlist: PlaylistWithVideos }) {
   const router = useRouter();
   const [activeVideo, setActiveVideo] = useState<VideoRow | null>(playlist.videos[0] || null);
+  const [user, setUser] = useState<User | null>(null);
+  const [isForking, setIsForking] = useState(false);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+    });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const handleFork = async () => {
+    if (!user) {
+      await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: window.location.href,
+        }
+      });
+      return;
+    }
+    
+    setIsForking(true);
+    
+    try {
+      // 1. Copy playlist
+      const { data: newPlaylist, error: playlistError } = await (supabase as any)
+        .from('playlists')
+        .insert([{
+          title: `${playlist.title} (העתק)`,
+          description: playlist.description,
+          tags: playlist.tags,
+          is_public: true,
+          play_count: 0,
+          creator_id: user.id
+        }])
+        .select()
+        .single();
+        
+      if (playlistError) throw new Error('שגיאה בשכפול הפלייליסט: ' + playlistError.message);
+      
+      // 2. Copy videos
+      const videosToInsert = playlist.videos.map(v => ({
+        playlist_id: newPlaylist.id,
+        youtube_id: v.youtube_id,
+        title: v.title,
+        thumbnail: v.thumbnail,
+        position: v.position
+      }));
+      
+      const { error: videosError } = await (supabase as any)
+        .from('videos')
+        .insert(videosToInsert);
+        
+      if (videosError) throw new Error('שגיאה בשכפול הסרטונים: ' + videosError.message);
+      
+      router.push(`/playlist/${newPlaylist.id}`);
+    } catch (err: any) {
+      alert(err.message);
+      setIsForking(false);
+    }
+  };
 
   return (
     <div className="flex flex-col lg:flex-row gap-8">
@@ -49,9 +115,13 @@ export default function PlaylistPlayer({ playlist }: { playlist: PlaylistWithVid
           </div>
           
           <div className="flex items-center gap-3">
-            <button className="flex items-center gap-2 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white px-6 py-2.5 rounded-full font-medium transition-colors shadow-lg shadow-violet-500/20">
-              <Copy className="w-4 h-4" />
-              שכפל וערוך (Fork)
+            <button
+              onClick={handleFork}
+              disabled={isForking}
+              className="flex items-center gap-2 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white px-6 py-2.5 rounded-full font-medium transition-colors shadow-lg shadow-violet-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isForking ? <Loader2 className="w-4 h-4 animate-spin" /> : <Copy className="w-4 h-4" />}
+              {user ? 'שכפל וערוך (Fork)' : 'התחבר כדי לשכפל'}
             </button>
           </div>
         </div>
