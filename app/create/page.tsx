@@ -1,8 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import { Youtube, Search, Plus, X, Loader2 } from 'lucide-react';
+import { Youtube, Search, Plus, X, Loader2, AlertCircle } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { supabase } from '@/lib/supabase';
 
 const POPULAR_TAGS = ["שבת", "חג", "שקט", "דאנס", "אברהם פריד", "חנן בן ארי", "ישי ריבו", "קצבי", "רגש", "ווקאלי", "למידה"];
 
@@ -13,25 +14,85 @@ export default function CreatePlaylist() {
   const [step, setStep] = useState(1);
   const [tags, setTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState('');
+  const [error, setError] = useState('');
+  const [playlistData, setPlaylistData] = useState<any>(null);
+  const [playlistTitle, setPlaylistTitle] = useState('');
+  const [playlistDescription, setPlaylistDescription] = useState('');
   
   const suggestedTags = POPULAR_TAGS.filter(t => t.includes(tagInput) && !tags.includes(t));
 
-  const handleImport = (e: React.FormEvent) => {
+  const handleImport = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!url) return;
     setLoading(true);
-    // Simulate API call
-    setTimeout(() => {
-      setLoading(false);
+    setError('');
+    
+    try {
+      const res = await fetch('/api/youtube', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url })
+      });
+      
+      const data = await res.json();
+      
+      if (!res.ok) {
+        throw new Error(data.error || 'שגיאה בייבוא הפלייליסט');
+      }
+      
+      setPlaylistData(data);
+      setPlaylistTitle(data.title);
+      setPlaylistDescription(data.description || '');
       setStep(2);
-    }, 1500);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
+    if (!playlistData || !playlistTitle) return;
     setLoading(true);
-    setTimeout(() => {
-      router.push('/playlist/pl_1'); // Redirect to a mock playlist for demo
-    }, 1000);
+    setError('');
+    
+    try {
+      // 1. Insert Playlist
+      const { data: newPlaylist, error: playlistError } = await (supabase as any)
+        .from('playlists')
+        .insert([{
+          title: playlistTitle,
+          description: playlistDescription,
+          tags,
+          is_public: true,
+          play_count: 0
+        }])
+        .select()
+        .single();
+        
+      if (playlistError) throw new Error('שגיאה בשמירת הפלייליסט: ' + playlistError.message);
+      
+      // 2. Insert Videos
+      const videosToInsert = playlistData.videos.map((v: any) => ({
+        playlist_id: newPlaylist.id,
+        youtube_id: v.youtube_id,
+        title: v.title,
+        thumbnail: v.thumbnail,
+        position: v.position
+      }));
+      
+      const { error: videosError } = await (supabase as any)
+        .from('videos')
+        .insert(videosToInsert);
+        
+      if (videosError) throw new Error('שגיאה בשמירת הסרטונים: ' + videosError.message);
+      
+      // 3. Redirect to the new playlist
+      router.push(`/playlist/${newPlaylist.id}`);
+    } catch (err: any) {
+      setError(err.message);
+      setLoading(false);
+    }
   };
 
   const addTag = (tag: string) => {
@@ -50,6 +111,13 @@ export default function CreatePlaylist() {
         <p className="text-slate-400 mb-8">
           {step === 1 ? 'הכנס קישור לפלייליסט מיוטיוב כדי להתחיל' : 'הוסף תגיות ותיאור כדי שאחרים יוכלו למצוא אותו'}
         </p>
+
+        {error && (
+          <div className="mb-6 p-4 bg-red-900/30 border border-red-500/30 rounded-2xl flex items-center gap-3 text-red-400">
+            <AlertCircle className="w-5 h-5 flex-shrink-0" />
+            <p className="text-sm font-medium">{error}</p>
+          </div>
+        )}
 
         {step === 1 && (
           <form onSubmit={handleImport} className="space-y-6">
@@ -90,7 +158,8 @@ export default function CreatePlaylist() {
               <label className="block text-sm font-medium text-slate-300 mb-2">שם הפלייליסט (יובא אוטומטית)</label>
               <input
                 type="text"
-                defaultValue="הפלייליסט החדש שלי"
+                value={playlistTitle}
+                onChange={(e) => setPlaylistTitle(e.target.value)}
                 className="w-full px-4 py-3 rounded-xl bg-slate-900 border border-slate-700 text-white focus:border-violet-500 outline-none shadow-inner"
               />
             </div>

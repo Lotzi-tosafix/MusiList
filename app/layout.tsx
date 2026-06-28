@@ -20,7 +20,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({children}: {children: React.ReactNode}) {
   return (
-    <html lang="he" dir="rtl" className={`${heebo.variable} ${spaceGrotesk.variable}`}>
+    <html lang="he" dir="rtl" className={`${heebo.variable} ${spaceGrotesk.variable}`} suppressHydrationWarning>
       <body className="font-sans antialiased text-slate-100 bg-[#030712] min-h-screen flex flex-col selection:bg-violet-500/30 selection:text-white" suppressHydrationWarning>
         <header className="sticky top-0 z-50 bg-[#030712]/80 backdrop-blur-md border-b border-slate-800/50">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
