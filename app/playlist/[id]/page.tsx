@@ -2,6 +2,8 @@ import { getPlaylistById } from '@/lib/api';
 import PlaylistPlayer from '@/components/PlaylistPlayer';
 import Link from 'next/link';
 
+export const dynamic = 'force-dynamic';
+
 export default async function PlaylistPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = await params;
   const playlist = await getPlaylistById(resolvedParams.id);
