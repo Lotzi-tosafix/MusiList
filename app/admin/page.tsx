@@ -32,6 +32,24 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleDeletePlaylist = async (id: string) => {
+    if (!confirm('האם אתה בטוח שברצונך למחוק פלייליסט זה?')) return;
+    
+    try {
+      // Delete child rows first since we don't have CASCADE enabled by default
+      await supabase.from('playlist_plays').delete().eq('playlist_id', id);
+      await supabase.from('videos').delete().eq('playlist_id', id);
+      
+      const { error } = await supabase.from('playlists').delete().eq('id', id);
+      if (error) throw error;
+      
+      setPlaylists(playlists.filter(p => p.id !== id));
+    } catch (err: any) {
+      console.error('Error deleting playlist:', err);
+      alert('שגיאה במחיקת הפלייליסט: ' + (err.message || ''));
+    }
+  };
+
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     if (email.toLowerCase() === 'y0527148273@gmail.com') {
@@ -153,7 +171,7 @@ export default function AdminDashboard() {
                     </span>
                   </td>
                   <td className="px-6 py-4">
-                    <button className="text-red-400 hover:text-red-300 font-medium">מחק</button>
+                    <button onClick={() => handleDeletePlaylist(playlist.id)} className="text-red-400 hover:text-red-300 font-medium">מחק</button>
                   </td>
                 </tr>
               ))}
