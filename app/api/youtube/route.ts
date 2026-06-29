@@ -49,18 +49,37 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'לא נמצאו סרטונים בפלייליסט' }, { status: 404 });
     }
 
-    const videos = videosData.items
-      .filter((item: any) => item.snippet.title !== 'Private video' && item.snippet.title !== 'Deleted video')
-      .map((item: any, index: number) => {
+    const validItems = videosData.items.filter((item: any) => item.snippet.title !== 'Private video' && item.snippet.title !== 'Deleted video');
+
+    const videoIds = validItems.map((item: any) => item.contentDetails.videoId).join(',');
+    
+    let statsMap: Record<string, number> = {};
+    if (videoIds) {
+      const videoStatsResponse = await fetch(
+        `https://www.googleapis.com/youtube/v3/videos?part=statistics&id=${videoIds}&key=${apiKey}`
+      );
+      const videoStatsData = await videoStatsResponse.json();
+      
+      if (videoStatsData.items) {
+        videoStatsData.items.forEach((v: any) => {
+          statsMap[v.id] = parseInt(v.statistics?.viewCount || '0', 10);
+        });
+      }
+    }
+
+    const videos = validItems.map((item: any, index: number) => {
+        const videoId = item.contentDetails.videoId;
         // Find best thumbnail
         const thumbnails = item.snippet.thumbnails || {};
         const thumbnail = thumbnails.maxres?.url || thumbnails.high?.url || thumbnails.medium?.url || thumbnails.default?.url || 'https://picsum.photos/seed/placeholder/640/360';
         
         return {
-          youtube_id: item.contentDetails.videoId,
+          youtube_id: videoId,
           title: item.snippet.title,
           thumbnail: thumbnail,
-          position: index + 1
+          position: index + 1,
+          publishedAt: item.contentDetails.videoPublishedAt || item.snippet.publishedAt || new Date().toISOString(),
+          viewCount: statsMap[videoId] || 0
         };
       });
 

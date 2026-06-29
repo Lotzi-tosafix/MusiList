@@ -32,6 +32,51 @@ export async function getTrendingPlaylists(): Promise<PlaylistWithVideos[]> {
   })) as PlaylistWithVideos[];
 }
 
+export async function getRecentPlaylists(): Promise<PlaylistWithVideos[]> {
+  const { data, error } = await supabase
+    .from('playlists')
+    .select(`
+      *,
+      videos (*)
+    `)
+    .eq('is_public', true)
+    .order('created_at', { ascending: false })
+    .limit(10);
+
+  if (error) {
+    console.error('Error fetching recent playlists:', error);
+    return [];
+  }
+
+  const playlists = data as any[];
+  return playlists.map(pl => ({
+    ...pl,
+    videos: (pl.videos || []).sort((a: VideoRow, b: VideoRow) => a.position - b.position)
+  })) as PlaylistWithVideos[];
+}
+
+export async function getPlaylists(sortBy: 'created_at' | 'play_count'): Promise<PlaylistWithVideos[]> {
+  const { data, error } = await supabase
+    .from('playlists')
+    .select(`
+      *,
+      videos (*)
+    `)
+    .eq('is_public', true)
+    .order(sortBy, { ascending: false });
+
+  if (error) {
+    console.error(`Error fetching playlists sorted by ${sortBy}:`, error);
+    return [];
+  }
+
+  const playlists = data as any[];
+  return playlists.map(pl => ({
+    ...pl,
+    videos: (pl.videos || []).sort((a: VideoRow, b: VideoRow) => a.position - b.position)
+  })) as PlaylistWithVideos[];
+}
+
 export async function getPlaylistById(id: string): Promise<PlaylistWithVideos | null> {
   const { data, error } = await supabase
     .from('playlists')

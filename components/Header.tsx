@@ -63,6 +63,7 @@ export default function Header() {
         </div>
         <nav className="flex items-center gap-6 text-sm font-medium">
           <Link href="/" className="text-slate-400 hover:text-white transition-colors cursor-pointer">ראשי</Link>
+          <Link href="/playlists" className="text-slate-400 hover:text-white transition-colors cursor-pointer">פלייליסטים</Link>
           <Link href="/create" className="text-slate-400 hover:text-white transition-colors cursor-pointer">יצירת פלייליסט</Link>
           {isAdmin && (
             <Link href="/admin" className="text-slate-400 hover:text-white transition-colors cursor-pointer">ניהול</Link>
@@ -70,14 +71,9 @@ export default function Header() {
           {user ? (
             <div className="flex items-center gap-4">
               <div 
-                className="flex items-center bg-slate-900 rounded-full cursor-pointer hover:bg-slate-800 transition-all border border-slate-700/50 overflow-hidden"
+                className="flex items-center bg-slate-900 rounded-full cursor-pointer hover:bg-slate-800 transition-all border border-slate-700/50 overflow-hidden pl-1"
                 onClick={() => setShowEmail(!showEmail)}
               >
-                <div 
-                  className={`overflow-hidden transition-all duration-300 ease-in-out whitespace-nowrap ${showEmail ? 'max-w-[200px] pl-3 pr-4 opacity-100' : 'max-w-0 px-0 opacity-0'}`}
-                >
-                  <span className="text-slate-300 text-sm font-medium">{user.email}</span>
-                </div>
                 {user.user_metadata?.avatar_url ? (
                   <img src={user.user_metadata.avatar_url} alt="Profile" className="w-8 h-8 rounded-full z-10 relative shadow-md" referrerPolicy="no-referrer" />
                 ) : (
@@ -85,6 +81,11 @@ export default function Header() {
                     <UserIcon className="w-4 h-4" />
                   </div>
                 )}
+                <div 
+                  className={`overflow-hidden transition-all duration-300 ease-in-out whitespace-nowrap ${showEmail ? 'max-w-[200px] pr-3 pl-2 opacity-100' : 'max-w-0 px-0 opacity-0'}`}
+                >
+                  <span className="text-slate-300 text-sm font-medium">{user.email}</span>
+                </div>
               </div>
               <button onClick={handleLogout} className="text-red-400 hover:text-red-300 transition-colors p-2 rounded-full hover:bg-red-500/10 cursor-pointer" title="התנתק">
                 <LogOut className="w-5 h-5" />

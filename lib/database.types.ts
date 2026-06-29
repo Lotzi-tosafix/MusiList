@@ -52,6 +52,8 @@ export interface Database {
           likes: number | null
           position: number
           created_at: string
+          published_at: string | null
+          view_count: number | null
         }
         Insert: {
           id?: string
@@ -63,6 +65,8 @@ export interface Database {
           likes?: number | null
           position?: number
           created_at?: string
+          published_at?: string | null
+          view_count?: number | null
         }
         Update: {
           id?: string
@@ -74,6 +78,8 @@ export interface Database {
           likes?: number | null
           position?: number
           created_at?: string
+          published_at?: string | null
+          view_count?: number | null
         }
       }
       playlist_plays: {

@@ -14,6 +14,21 @@ export default function AdminDashboard() {
   const [tags, setTags] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const fetchData = async () => {
+    setLoading(true);
+    const { data: pData } = await supabase.from('playlists').select('*, videos(*)').order('created_at', { ascending: false });
+    if (pData) {
+      setPlaylists(pData as any);
+      
+      const tagSet = new Set<string>();
+      (pData as any[]).forEach(row => {
+        if (row.tags) row.tags.forEach((tag: string) => tagSet.add(tag));
+      });
+      setTags(Array.from(tagSet));
+    }
+    setLoading(false);
+  };
+
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
@@ -37,21 +52,6 @@ export default function AdminDashboard() {
 
     return () => subscription.unsubscribe();
   }, []);
-
-  const fetchData = async () => {
-    setLoading(true);
-    const { data: pData } = await supabase.from('playlists').select('*, videos(*)').order('created_at', { ascending: false });
-    if (pData) {
-      setPlaylists(pData as any);
-      
-      const tagSet = new Set<string>();
-      (pData as any[]).forEach(row => {
-        if (row.tags) row.tags.forEach((tag: string) => tagSet.add(tag));
-      });
-      setTags(Array.from(tagSet));
-    }
-    setLoading(false);
-  };
 
   const handleDeletePlaylist = async (id: string) => {
     if (!confirm('האם אתה בטוח שברצונך למחוק פלייליסט זה?')) return;

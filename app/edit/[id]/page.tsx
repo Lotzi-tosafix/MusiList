@@ -1,10 +1,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Youtube, Search, Plus, X, Loader2, AlertCircle, GripVertical, Lock, Globe, ArrowDownAZ, CalendarDays, ArrowUpAZ, ArrowUp, ArrowDown, RotateCcw, Eye } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { User } from '@supabase/supabase-js';
+import { Loader2, AlertCircle, GripVertical, Lock, Globe, ArrowDownAZ, CalendarDays, X, Plus, ArrowUpAZ, ArrowUp, ArrowDown, RotateCcw, Eye } from 'lucide-react';
 import {
   DndContext,
   closestCenter,
@@ -22,6 +22,7 @@ import {
   useSortable
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { use } from 'react';
 
 const INITIAL_POPULAR_TAGS = ["שבת", "חג", "שקט", "דאנס", "אברהם פריד", "חנן בן ארי", "ישי ריבו", "קצבי", "רגש", "ווקאלי", "למידה"];
 
@@ -46,7 +47,7 @@ function SortableVideoItem({ video, index }: { video: any, index: number }) {
       </div>
       <span className="text-slate-400 text-sm font-mono">{index + 1}</span>
       <div className="w-16 h-12 relative rounded-lg overflow-hidden bg-slate-900 flex-shrink-0">
-        <img src={video.thumbnail} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+        <img src={video.thumbnail || 'https://picsum.photos/seed/placeholder/640/360'} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
       </div>
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium text-white truncate">{video.title}</p>
@@ -55,37 +56,92 @@ function SortableVideoItem({ video, index }: { video: any, index: number }) {
   );
 }
 
-export default function CreatePlaylist() {
+export default function EditPlaylist({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter();
+  const { id } = use(params);
+  
   const [user, setUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
-  const [url, setUrl] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [step, setStep] = useState(1);
+  
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  
+  const [playlistTitle, setPlaylistTitle] = useState('');
+  const [playlistDescription, setPlaylistDescription] = useState('');
   const [tags, setTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState('');
   const [popularTags, setPopularTags] = useState<string[]>(INITIAL_POPULAR_TAGS);
-  const [error, setError] = useState('');
-  const [playlistData, setPlaylistData] = useState<any>(null);
-  const [playlistTitle, setPlaylistTitle] = useState('');
-  const [playlistDescription, setPlaylistDescription] = useState('');
   const [isPublic, setIsPublic] = useState(true);
   const [videos, setVideos] = useState<any[]>([]);
   const [alphaSortDir, setAlphaSortDir] = useState<'asc' | 'desc' | null>(null);
   const [dateSortDir, setDateSortDir] = useState<'asc' | 'desc' | null>(null);
   const [viewsSortDir, setViewsSortDir] = useState<'asc' | 'desc' | null>(null);
   const [originalVideos, setOriginalVideos] = useState<any[]>([]);
+  
+  const [step, setStep] = useState(1);
+
+  const fetchPlaylist = async () => {
+    setLoading(true);
+    setAuthLoading(false);
+    
+    try {
+      const { data: rawData, error: fetchError } = await supabase
+        .from('playlists')
+        .select('*, videos(*)')
+        .eq('id', id)
+        .single();
+        
+      if (fetchError) throw fetchError;
+      const data: any = rawData;
+      
+      const sessionData = await supabase.auth.getSession();
+      const currentUser = sessionData.data.session?.user;
+      
+      if (!currentUser || (currentUser.id !== data.creator_id && currentUser.email?.toLowerCase() !== 'y0527148273@gmail.com')) {
+        throw new Error('אין לך הרשאות לערוך פלייליסט זה.');
+      }
+      
+      setPlaylistTitle(data.title);
+      setPlaylistDescription(data.description || '');
+      setTags(data.tags || []);
+      setIsPublic(data.is_public);
+      
+      // Sort videos by position
+      const sortedVideos = [...(data.videos || [])].sort((a, b) => a.position - b.position);
+      setVideos(sortedVideos);
+      setOriginalVideos([...sortedVideos]);
+      
+      // Update popular tags with any existing tags
+      const newPopular = (data.tags || []).filter((t: string) => !INITIAL_POPULAR_TAGS.includes(t));
+      if (newPopular.length > 0) {
+        setPopularTags([...INITIAL_POPULAR_TAGS, ...newPopular]);
+      }
+      
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
-      setAuthLoading(false);
+      if (session?.user) {
+        fetchPlaylist();
+      } else {
+        setAuthLoading(false);
+      }
     });
 
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
+      if (session?.user && loading && authLoading) {
+        fetchPlaylist();
+      }
     });
 
     // Fetch existing public tags
@@ -116,54 +172,17 @@ export default function CreatePlaylist() {
     fetchAllUserTags();
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, [id]);
 
   const suggestedTags = popularTags.filter(t => t.includes(tagInput) && !tags.includes(t));
 
-  const handleImport = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!url) return;
-    setLoading(true);
-    setError('');
-    
-    try {
-      const res = await fetch('/api/youtube', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url })
-      });
-      
-      const data = await res.json();
-      
-      if (!res.ok) {
-        throw new Error(data.error || 'שגיאה בייבוא הפלייליסט');
-      }
-      
-      setPlaylistData(data);
-      setPlaylistTitle(data.title);
-      setPlaylistDescription(data.description || '');
-      setVideos(data.videos);
-      setOriginalVideos([...data.videos]);
-      setStep(2);
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const addTag = (tag: string) => {
     if (!tag.trim()) return;
-    
-    // Split by comma in case user pastes comma separated list
     const newTags = tag.split(',').map(t => t.trim()).filter(t => t);
-    
     const uniqueNewTags = newTags.filter(t => !tags.includes(t));
     
     if (uniqueNewTags.length > 0) {
       setTags([...tags, ...uniqueNewTags]);
-      
-      // Add any new tags to popular tags so they appear in suggestions
       const newPopular = uniqueNewTags.filter(t => !popularTags.includes(t));
       if (newPopular.length > 0) {
         setPopularTags([...popularTags, ...newPopular]);
@@ -173,55 +192,64 @@ export default function CreatePlaylist() {
   };
 
   const handleNextStep = () => {
-    if (step === 2) {
-      setStep(3);
+    if (step === 1) {
+      setStep(2);
     }
   };
 
   const handleSave = async () => {
-    if (!playlistData || !playlistTitle) return;
-    setLoading(true);
+    if (!playlistTitle) return;
+    setSaving(true);
     setError('');
-    
+
     try {
-      // 1. Insert Playlist
-      const { data: newPlaylist, error: playlistError } = await (supabase as any)
+      // 1. Update Playlist details
+      const { error: playlistError } = await (supabase as any)
         .from('playlists')
-        .insert([{
+        .update({
           title: playlistTitle,
           description: playlistDescription,
           tags,
           is_public: isPublic,
-          play_count: 0,
-          creator_id: user?.id || null
-        }])
-        .select()
-        .single();
-        
+        })
+        .eq('id', id);
+
       if (playlistError) throw new Error('שגיאה בשמירת הפלייליסט: ' + playlistError.message);
       
-      // 2. Insert Videos
+      // 2. Delete all existing videos for this playlist (to re-insert them with new order)
+      // Actually, we could just update positions, but deleting and re-inserting is easier to manage adding/removing
+      // Since we don't have cascade delete configured here directly, we'll just update positions for existing ones
+      // Wait, deleting is simpler if we didn't change the IDs, but videos don't have constraints holding them back.
+      // Wait, there's `playlist_plays`? `playlist_plays` has `playlist_id`, not `video_id`.
+      
+      const { error: deleteVideosError } = await (supabase as any)
+        .from('videos')
+        .delete()
+        .eq('playlist_id', id);
+        
+      if (deleteVideosError) throw new Error('שגיאה במחיקת סרטונים קודמים: ' + deleteVideosError.message);
+
+      // 3. Re-insert videos with new positions
       const videosToInsert = videos.map((v: any, index: number) => ({
-        playlist_id: newPlaylist.id,
+        playlist_id: id,
         youtube_id: v.youtube_id,
         title: v.title,
         thumbnail: v.thumbnail,
-        position: index + 1, // Save according to their new reordered positions
+        position: index + 1,
         published_at: v.published_at || v.publishedAt || null,
         view_count: v.view_count ?? v.viewCount ?? null
       }));
       
-      const { error: videosError } = await (supabase as any)
+      const { error: insertVideosError } = await (supabase as any)
         .from('videos')
         .insert(videosToInsert);
         
-      if (videosError) throw new Error('שגיאה בשמירת הסרטונים: ' + videosError.message);
-      
-      // 3. Redirect to the new playlist
-      router.push(`/playlist/${newPlaylist.id}`);
+      if (insertVideosError) throw new Error('שגיאה בשמירת הסרטונים: ' + insertVideosError.message);
+
+      router.push(`/playlist/${id}`);
     } catch (err: any) {
       setError(err.message);
-      setLoading(false);
+      setSaving(false);
     }
   };
 
@@ -300,9 +328,7 @@ export default function CreatePlaylist() {
     })
   );
 
-
-
-  if (authLoading) {
+  if (authLoading || loading) {
     return (
       <div className="flex items-center justify-center min-h-[50vh]">
         <Loader2 className="w-8 h-8 text-violet-500 animate-spin" />
@@ -313,16 +339,12 @@ export default function CreatePlaylist() {
   if (!user) {
     return (
       <div className="max-w-md mx-auto mt-20 p-8 bg-slate-900/60 rounded-3xl shadow-2xl border border-slate-800 text-center">
-        <div className="w-16 h-16 bg-violet-900/50 text-violet-400 rounded-2xl flex items-center justify-center mx-auto mb-6">
-          <Youtube className="w-8 h-8" />
-        </div>
-        <h1 className="text-2xl font-bold text-white mb-2">ייבוא פלייליסט</h1>
+        <h1 className="text-2xl font-bold text-white mb-2">עריכת פלייליסט</h1>
         <p className="text-slate-400 mb-8">
-          כדי לייבא ולערוך פלייליסטים, אנא התחבר לחשבונך.
+          כדי לערוך פלייליסטים, אנא התחבר לחשבונך.
         </p>
-        
         <button
-          onClick={() => supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.origin + '/create' } })}
+          onClick={() => supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.href } })}
           className="w-full bg-white hover:bg-gray-100 text-gray-900 font-medium py-3 rounded-xl transition-all shadow-lg flex justify-center items-center gap-3 cursor-pointer"
         >
           <svg className="w-5 h-5" viewBox="0 0 24 24" xmlns="http://www.w3.org/24/svg">
@@ -341,106 +363,98 @@ export default function CreatePlaylist() {
     <div className="max-w-2xl mx-auto mt-8">
       <div className="bg-slate-900/60 p-8 rounded-3xl shadow-2xl border border-slate-800 relative">
         <button 
-          onClick={() => router.push('/')}
+          onClick={() => router.push(`/playlist/${id}`)}
           className="absolute top-6 left-6 text-slate-400 hover:text-white transition-colors"
           title="ביטול ויציאה"
         >
           <X className="w-6 h-6" />
         </button>
-
-        <h1 className="text-3xl font-bold text-white mb-2">
-          {step === 1 ? 'ייבוא פלייליסט' : 'הגדרות פלייליסט'}
-        </h1>
-        <p className="text-slate-400 mb-8">
-          {step === 1 ? 'הכנס קישור לפלייליסט מיוטיוב כדי להתחיל' : 'הוסף תגיות ותיאור כדי שאחרים יוכלו למצוא אותו'}
-        </p>
+        
+        {/* Stepper */}
+        <div className="flex items-center justify-between mb-8 relative">
+          <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-slate-800 -z-10" />
+          <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold ${step >= 1 ? 'bg-violet-600 text-white shadow-[0_0_15px_rgba(124,58,237,0.5)]' : 'bg-slate-800 text-slate-500'}`}>
+            1
+          </div>
+          <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold ${step >= 2 ? 'bg-violet-600 text-white shadow-[0_0_15px_rgba(124,58,237,0.5)]' : 'bg-slate-800 text-slate-500'}`}>
+            2
+          </div>
+        </div>
 
         {error && (
-          <div className="mb-6 p-4 bg-red-900/30 border border-red-500/30 rounded-2xl flex items-center gap-3 text-red-400">
-            <AlertCircle className="w-5 h-5 flex-shrink-0" />
-            <p className="text-sm font-medium">{error}</p>
+          <div className="mb-6 bg-red-900/30 border border-red-500/30 rounded-xl p-4 flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 text-red-400 mt-0.5" />
+            <p className="text-red-300 text-sm">{error}</p>
           </div>
         )}
 
         {step === 1 && (
-          <form onSubmit={handleImport} className="space-y-6">
-            <div className="relative">
-              <div className="absolute inset-y-0 right-4 flex items-center pointer-events-none text-red-500">
-                <Youtube className="w-6 h-6" />
-              </div>
-              <input
-                type="url"
-                value={url}
-                onChange={(e) => setUrl(e.target.value)}
-                placeholder="https://www.youtube.com/playlist?list=..."
-                className="w-full pl-4 pr-12 py-4 rounded-2xl bg-slate-900 border border-slate-700 text-white focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 outline-none transition-all text-left dir-ltr shadow-inner"
-                required
-              />
-            </div>
-            
-            <button
-              type="submit"
-              disabled={loading || !url}
-              className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 disabled:from-slate-700 disabled:to-slate-800 disabled:text-slate-500 text-white font-bold py-4 rounded-2xl transition-all shadow-lg shadow-violet-500/20"
-            >
-              {loading ? (
-                <Loader2 className="w-5 h-5 animate-spin" />
-              ) : (
-                <>
-                  <Search className="w-5 h-5" />
-                  <span>משוך סרטונים</span>
-                </>
-              )}
-            </button>
-          </form>
-        )}
-
-        {step === 2 && (
           <div className="space-y-6">
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">שם הפלייליסט (יובא אוטומטית)</label>
+              <label className="block text-sm font-medium text-slate-300 mb-2">שם הפלייליסט</label>
               <input
                 type="text"
                 value={playlistTitle}
                 onChange={(e) => setPlaylistTitle(e.target.value)}
-                className="w-full px-4 py-3 rounded-xl bg-slate-900 border border-slate-700 text-white focus:border-violet-500 outline-none shadow-inner"
+                className="w-full px-4 py-3 rounded-xl bg-slate-800/50 border border-slate-700 text-white focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 outline-none transition-all"
+                placeholder="לדוגמה: שירי שבת רגועים..."
               />
             </div>
             
             <div>
+              <label className="block text-sm font-medium text-slate-300 mb-2">תיאור (אופציונלי)</label>
+              <textarea
+                value={playlistDescription}
+                onChange={(e) => setPlaylistDescription(e.target.value)}
+                className="w-full px-4 py-3 rounded-xl bg-slate-800/50 border border-slate-700 text-white focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 outline-none transition-all h-24 resize-none"
+                placeholder="ספר קצת על הפלייליסט..."
+              />
+            </div>
+
+            <div>
               <label className="block text-sm font-medium text-slate-300 mb-2">תגיות (ליצירה והפרדה בין תגיות לחצו ENTER)</label>
-              <div className="p-2 border border-slate-700 rounded-xl focus-within:border-violet-500 bg-slate-900 shadow-inner">
-                <div className="flex flex-wrap gap-2 mb-2">
-                  {tags.map(tag => (
-                    <span key={tag} className="flex items-center gap-1 bg-violet-900/50 border border-violet-500/30 text-violet-300 px-3 py-1 rounded-full text-sm font-medium">
-                      {tag}
-                      <button onClick={() => setTags(tags.filter(t => t !== tag))} className="hover:text-white transition-colors">
-                        <X className="w-3 h-3" />
-                      </button>
-                    </span>
-                  ))}
-                </div>
+              <div className="flex gap-2 mb-3">
                 <input
                   type="text"
                   value={tagInput}
                   onChange={(e) => setTagInput(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addTag(tagInput))}
-                  placeholder="הוסף תגית (למשל: שבת, קצבי)..."
-                  className="w-full outline-none p-2 bg-transparent text-white placeholder-slate-500"
+                  className="flex-1 px-4 py-3 rounded-xl bg-slate-800/50 border border-slate-700 text-white focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 outline-none transition-all"
+                  placeholder="הוסף תגית..."
                 />
+                <button
+                  type="button"
+                  onClick={() => addTag(tagInput)}
+                  className="px-4 py-3 bg-slate-800 hover:bg-slate-700 text-white rounded-xl transition-colors border border-slate-700"
+                >
+                  <Plus className="w-5 h-5" />
+                </button>
               </div>
+              
               {tagInput && suggestedTags.length > 0 && (
-                <div className="mt-2 flex flex-wrap gap-2 p-3 bg-slate-800 rounded-xl border border-slate-700">
-                  <span className="text-xs text-slate-400 w-full mb-1">הצעות מתאימות:</span>
+                <div className="flex flex-wrap gap-2 mb-3 p-3 bg-slate-800/30 rounded-xl border border-slate-800">
                   {suggestedTags.map(tag => (
                     <button
                       key={tag}
+                      type="button"
                       onClick={() => addTag(tag)}
-                      className="flex items-center gap-1 text-sm bg-slate-900 border border-slate-700 text-slate-400 px-3 py-1.5 rounded-full hover:border-violet-500 hover:text-violet-400 transition-colors"
+                      className="px-3 py-1 bg-slate-800 hover:bg-violet-900/50 text-slate-300 hover:text-violet-300 rounded-lg text-sm transition-colors border border-slate-700"
                     >
-                      <Plus className="w-3 h-3" />
                       {tag}
                     </button>
+                  ))}
+                </div>
+              )}
+
+              {tags.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {tags.map(tag => (
+                    <span key={tag} className="flex items-center gap-1 bg-violet-900/40 text-violet-300 px-3 py-1.5 rounded-lg text-sm border border-violet-500/30">
+                      {tag}
+                      <button onClick={() => setTags(tags.filter(t => t !== tag))} className="hover:text-white transition-colors">
+                        <X className="w-3 h-3" />
+                      </button>
+                    </span>
                   ))}
                 </div>
               )}
@@ -470,14 +484,8 @@ export default function CreatePlaylist() {
 
             <div className="pt-4 flex gap-4">
               <button
-                onClick={() => setStep(1)}
-                className="flex-1 py-3 text-slate-400 font-medium hover:bg-slate-800 hover:text-white rounded-xl transition-colors border border-transparent hover:border-slate-700"
-              >
-                חזור
-              </button>
-              <button
                 onClick={handleNextStep}
-                className="flex-2 w-2/3 flex items-center justify-center gap-2 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-bold py-3 rounded-xl transition-all shadow-lg shadow-violet-500/20"
+                className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-bold py-3 rounded-xl transition-all shadow-lg shadow-violet-500/20"
               >
                 הבא
               </button>
@@ -485,7 +493,7 @@ export default function CreatePlaylist() {
           </div>
         )}
 
-        {step === 3 && (
+        {step === 2 && (
           <div className="space-y-6">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-bold text-white">סידור וסינון סרטונים ({videos.length})</h2>
@@ -531,21 +539,22 @@ export default function CreatePlaylist() {
 
             <div className="pt-4 flex gap-4">
               <button
-                onClick={() => setStep(2)}
+                onClick={() => setStep(1)}
                 className="flex-1 py-3 text-slate-400 font-medium hover:bg-slate-800 hover:text-white rounded-xl transition-colors border border-transparent hover:border-slate-700"
               >
                 חזור
               </button>
               <button
                 onClick={handleSave}
-                disabled={loading}
+                disabled={saving}
                 className="flex-2 w-2/3 flex items-center justify-center gap-2 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 disabled:from-slate-700 disabled:to-slate-800 disabled:text-slate-500 text-white font-bold py-3 rounded-xl transition-all shadow-lg shadow-violet-500/20"
               >
-                {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'שמור פלייליסט'}
+                {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : 'שמור פלייליסט'}
               </button>
             </div>
           </div>
         )}
+
       </div>
     </div>
   );
