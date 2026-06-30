@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { usePathname, useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { User } from '@supabase/supabase-js';
-import { LogOut, User as UserIcon } from 'lucide-react';
+import { LogOut, User as UserIcon, Search, Music, Plus, List } from 'lucide-react';
 
 const GoogleIcon = ({ className }: { className?: string }) => (
   <svg className={className} viewBox="0 0 24 24" xmlns="http://www.w3.org/24/svg">
@@ -18,6 +19,9 @@ const GoogleIcon = ({ className }: { className?: string }) => (
 export default function Header() {
   const [user, setUser] = useState<User | null>(null);
   const [showEmail, setShowEmail] = useState(false);
+  const [searchVal, setSearchVal] = useState('');
+  const pathname = usePathname() || '';
+  const router = useRouter();
   
   useEffect(() => {
     // Get initial session
@@ -48,55 +52,144 @@ export default function Header() {
     await supabase.auth.signOut();
   };
 
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchVal.trim()) {
+      router.push(`/playlists?q=${encodeURIComponent(searchVal.trim())}`);
+    }
+  };
+
   const isAdmin = user?.email?.toLowerCase() === 'y0527148273@gmail.com';
 
   return (
-    <header className="sticky top-0 z-50 bg-[#030712]/80 backdrop-blur-md border-b border-slate-800/50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Link href="/" className="flex items-center gap-3 cursor-pointer">
-            <div className="w-10 h-10 bg-gradient-to-br from-violet-500 to-cyan-400 rounded-xl flex items-center justify-center shadow-lg shadow-violet-500/20 text-white font-display font-bold text-xl cursor-pointer">
-              M
+    <header className="sticky top-0 z-50 bg-[#020617]/90 backdrop-blur-xl border-b border-slate-800/80 shadow-lg shadow-black/40">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 sm:h-20 flex items-center justify-between gap-4">
+        {/* Logo & Brand */}
+        <div className="flex items-center gap-4 flex-shrink-0">
+          <Link href="/" className="flex items-center gap-3 cursor-pointer group">
+            <div className="w-10 h-10 sm:w-11 sm:h-11 bg-gradient-to-tr from-violet-600 via-indigo-500 to-cyan-400 rounded-2xl flex items-center justify-center shadow-lg shadow-violet-500/20 text-white font-display font-bold text-xl cursor-pointer group-hover:scale-105 transition-transform duration-300">
+              <Music className="w-5.5 h-5.5 text-white animate-pulse" />
             </div>
-            <span className="font-display font-bold text-2xl tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-400 cursor-pointer">MusiList</span>
+            <div className="flex flex-col">
+              <span className="font-display font-black text-xl sm:text-2xl tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white via-slate-100 to-slate-400 cursor-pointer">
+                MusiList
+              </span>
+              <span className="text-[10px] text-violet-400/80 font-bold tracking-widest uppercase -mt-1 hidden sm:inline">
+                קהילת פלייליסטים
+              </span>
+            </div>
           </Link>
         </div>
-        <nav className="flex items-center gap-6 text-sm font-medium">
-          <Link href="/" className="text-slate-400 hover:text-white transition-colors cursor-pointer">ראשי</Link>
-          <Link href="/playlists" className="text-slate-400 hover:text-white transition-colors cursor-pointer">פלייליסטים</Link>
-          <Link href="/create" className="text-slate-400 hover:text-white transition-colors cursor-pointer">יצירת פלייליסט</Link>
+
+        {/* Integrated Quick Search inside Header */}
+        <form onSubmit={handleSearchSubmit} className="hidden md:flex relative max-w-xs w-full lg:max-w-sm">
+          <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+          <input
+            type="text"
+            placeholder="חיפוש פלייליסט או סרטון..."
+            value={searchVal}
+            onChange={(e) => setSearchVal(e.target.value)}
+            className="w-full bg-slate-900/60 text-white placeholder-slate-500 text-xs pl-4 pr-9 py-2 rounded-full border border-slate-800 focus:outline-none focus:border-violet-500/60 focus:bg-slate-950/80 focus:ring-1 focus:ring-violet-500/20 transition-all text-right"
+            dir="rtl"
+          />
+        </form>
+
+        {/* Navigation & Controls */}
+        <nav className="flex items-center gap-2 sm:gap-4 md:gap-6 text-sm font-medium">
+          <Link 
+            href="/" 
+            className={`px-3 py-1.5 rounded-full transition-all text-xs sm:text-sm cursor-pointer ${
+              pathname === '/' 
+                ? 'bg-slate-900 text-white border border-slate-800' 
+                : 'text-slate-400 hover:text-white hover:bg-slate-900/40'
+            }`}
+          >
+            ראשי
+          </Link>
+          
+          <Link 
+            href="/playlists" 
+            className={`px-3 py-1.5 rounded-full transition-all text-xs sm:text-sm cursor-pointer flex items-center gap-1.5 ${
+              pathname.startsWith('/playlists') 
+                ? 'bg-slate-900 text-white border border-slate-800' 
+                : 'text-slate-400 hover:text-white hover:bg-slate-900/40'
+            }`}
+          >
+            <List className="w-4 h-4 text-violet-400 hidden sm:inline" />
+            <span>פלייליסטים</span>
+          </Link>
+
+          <Link 
+            href="/create" 
+            className={`px-3 py-1.5 rounded-full transition-all text-xs sm:text-sm cursor-pointer flex items-center gap-1.5 ${
+              pathname === '/create' 
+                ? 'bg-slate-900 text-white border border-slate-800' 
+                : 'text-slate-400 hover:text-white hover:bg-slate-900/40'
+            }`}
+          >
+            <Plus className="w-4 h-4 text-cyan-400 hidden sm:inline" />
+            <span>ייבוא פלייליסט</span>
+          </Link>
+
           {isAdmin && (
-            <Link href="/admin" className="text-slate-400 hover:text-white transition-colors cursor-pointer">ניהול</Link>
+            <Link 
+              href="/admin" 
+              className={`px-3 py-1.5 rounded-full transition-all text-xs sm:text-sm cursor-pointer ${
+                pathname === '/admin' 
+                  ? 'bg-slate-900 text-white border border-slate-800' 
+                  : 'text-slate-400 hover:text-white hover:bg-slate-900/40'
+              }`}
+            >
+              ניהול
+            </Link>
           )}
-          {user ? (
-            <div className="flex items-center gap-4">
-              <div 
-                className="flex items-center bg-slate-900 rounded-full cursor-pointer hover:bg-slate-800 transition-all border border-slate-700/50 overflow-hidden pl-1"
-                onClick={() => setShowEmail(!showEmail)}
-              >
-                {user.user_metadata?.avatar_url ? (
-                  <img src={user.user_metadata.avatar_url} alt="Profile" className="w-8 h-8 rounded-full z-10 relative shadow-md" referrerPolicy="no-referrer" />
-                ) : (
-                  <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-slate-300 z-10 relative shadow-md">
-                    <UserIcon className="w-4 h-4" />
-                  </div>
-                )}
+
+          {/* Auth State */}
+          <div className="flex items-center gap-2 border-r border-slate-800/80 pr-2 sm:pr-4 md:pr-6 mr-1 sm:mr-2">
+            {user ? (
+              <div className="flex items-center gap-2 sm:gap-3">
                 <div 
-                  className={`overflow-hidden transition-all duration-300 ease-in-out whitespace-nowrap ${showEmail ? 'max-w-[200px] pr-3 pl-2 opacity-100' : 'max-w-0 px-0 opacity-0'}`}
+                  className="flex items-center bg-slate-900/80 rounded-full cursor-pointer hover:bg-slate-800 transition-all border border-slate-800 hover:border-violet-500/40 overflow-hidden p-0.5 pl-2"
+                  onClick={() => setShowEmail(!showEmail)}
                 >
-                  <span className="text-slate-300 text-sm font-medium">{user.email}</span>
+                  {user.user_metadata?.avatar_url ? (
+                    <img 
+                      src={user.user_metadata.avatar_url} 
+                      alt="Profile" 
+                      className="w-7 h-7 sm:w-8 sm:h-8 rounded-full shadow-md hover:scale-105 transition-transform" 
+                      referrerPolicy="no-referrer" 
+                    />
+                  ) : (
+                    <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-slate-800 flex items-center justify-center text-slate-300">
+                      <UserIcon className="w-3.5 h-3.5" />
+                    </div>
+                  )}
+                  <div 
+                    className={`overflow-hidden transition-all duration-300 ease-in-out whitespace-nowrap ${showEmail ? 'max-w-[160px] pr-2 opacity-100' : 'max-w-0 px-0 opacity-0'}`}
+                  >
+                    <span className="text-slate-300 text-xs font-semibold">{user.email}</span>
+                  </div>
                 </div>
+                
+                <button 
+                  onClick={handleLogout} 
+                  className="text-slate-400 hover:text-red-400 transition-colors p-2 rounded-xl hover:bg-red-500/10 cursor-pointer" 
+                  title="התנתק"
+                >
+                  <LogOut className="w-4.5 h-4.5 sm:w-5 sm:h-5" />
+                </button>
               </div>
-              <button onClick={handleLogout} className="text-red-400 hover:text-red-300 transition-colors p-2 rounded-full hover:bg-red-500/10 cursor-pointer" title="התנתק">
-                <LogOut className="w-5 h-5" />
+            ) : (
+              <button 
+                onClick={handleLogin} 
+                className="flex items-center gap-2 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white text-xs sm:text-sm px-3 py-2 sm:px-4 sm:py-2.5 rounded-full font-bold transition-all shadow-md shadow-violet-500/10 hover:shadow-violet-500/20 cursor-pointer"
+              >
+                <GoogleIcon className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">התחבר עם Google</span>
+                <span className="sm:hidden">התחבר</span>
               </button>
-            </div>
-          ) : (
-            <button onClick={handleLogin} className="flex items-center gap-2 bg-white hover:bg-gray-100 text-gray-900 px-4 py-2 rounded-full font-medium transition-colors shadow-sm cursor-pointer">
-              <GoogleIcon className="w-4 h-4" />
-              התחבר
-            </button>
-          )}
+            )}
+          </div>
         </nav>
       </div>
     </header>

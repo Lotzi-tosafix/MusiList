@@ -2,7 +2,7 @@
 
 import { usePlayer } from '@/lib/PlayerContext';
 import { Play, Pause, SkipForward, SkipBack, Maximize2, X, ChevronUp, ChevronDown, Volume2, VolumeX } from 'lucide-react';
-import { useState, useRef, useLayoutEffect } from 'react';
+import { useState, useRef, useLayoutEffect, useEffect } from 'react';
 import YouTube, { YouTubeProps } from 'react-youtube';
 
 import Link from 'next/link';
@@ -28,7 +28,7 @@ export default function GlobalPlayer() {
   } = usePlayer();
   
   const [isMinimized, setIsMinimized] = useState(false);
-
+  
   useLayoutEffect(() => {
     const mainEl = document.querySelector('main');
     if (!mainEl) return;
@@ -145,20 +145,20 @@ export default function GlobalPlayer() {
           
           {/* Timeline */}
           <div className="w-full max-w-xl flex items-center gap-3 text-xs text-slate-400 px-4">
-            <span>{formatTime(currentTime)}</span>
+            <span>{formatTime(duration || 0)}</span>
             <input 
               type="range" 
               min={0} 
               max={duration || 100} 
-              value={currentTime} 
+              value={currentTime || 0} 
               onChange={handleSeek}
               dir="ltr"
               className="flex-1 h-1 bg-slate-700 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:rounded-full"
               style={{
-                background: `linear-gradient(to right, #8b5cf6 ${duration ? (currentTime / duration) * 100 : 0}%, #334155 ${duration ? (currentTime / duration) * 100 : 0}%)`
+                background: `linear-gradient(to right, #8b5cf6 ${duration ? ((currentTime || 0) / duration) * 100 : 0}%, #334155 ${duration ? ((currentTime || 0) / duration) * 100 : 0}%)`
               }}
             />
-            <span>{formatTime(duration)}</span>
+            <span>{formatTime(currentTime || 0)}</span>
           </div>
         </div>
 
@@ -170,12 +170,12 @@ export default function GlobalPlayer() {
               type="range"
               min={0}
               max={100}
-              value={volume}
+              value={volume || 0}
               onChange={handleVolumeChange}
               dir="ltr"
-              className="w-20 h-1 bg-slate-700 rounded-lg appearance-none cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:rounded-full"
+              className="w-20 h-1 bg-slate-700 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:rounded-full"
               style={{
-                background: `linear-gradient(to right, #8b5cf6 ${volume}%, #334155 ${volume}%)`
+                background: `linear-gradient(to right, #8b5cf6 ${volume || 0}%, #334155 ${volume || 0}%)`
               }}
             />
           </div>
@@ -199,6 +199,7 @@ function PersistentVideo() {
     currentIndex, 
     isPlaying,
     setIsPlaying,
+    playerTarget,
     setPlayerTarget,
     currentTime,
     volume,
@@ -209,6 +210,13 @@ function PersistentVideo() {
   const currentVideo = videos[currentIndex];
   const containerRef = useRef<HTMLDivElement>(null);
   const lastVideoIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (playerTarget && currentVideo && currentVideo.youtube_id !== lastVideoIdRef.current) {
+      playerTarget.loadVideoById(currentVideo.youtube_id);
+      lastVideoIdRef.current = currentVideo.youtube_id;
+    }
+  }, [currentVideo, playerTarget]);
 
   useLayoutEffect(() => {
     let animationFrameId: number;
@@ -249,7 +257,6 @@ function PersistentVideo() {
       }}
     >
       <YouTube
-        key={currentVideo.youtube_id}
         videoId={currentVideo.youtube_id}
         opts={{
           width: '100%',
@@ -266,12 +273,7 @@ function PersistentVideo() {
         onReady={(e) => {
           setPlayerTarget(e.target);
           e.target.setVolume(volume);
-          if (lastVideoIdRef.current === currentVideo.youtube_id && currentTime > 0) {
-            e.target.seekTo(currentTime, true);
-          } else {
-            e.target.seekTo(0, true);
-            lastVideoIdRef.current = currentVideo.youtube_id;
-          }
+          lastVideoIdRef.current = currentVideo.youtube_id;
           if (isPlaying) {
             e.target.playVideo();
           }
@@ -279,7 +281,14 @@ function PersistentVideo() {
         onStateChange={(e) => {
           if (e.data === 1) setIsPlaying(true);
           if (e.data === 2) setIsPlaying(false);
-          if (e.data === 0) playNext();
+          if (e.data === 0) {
+            if (currentIndex < videos.length - 1) {
+              const nextId = videos[currentIndex + 1].youtube_id;
+              e.target.loadVideoById(nextId);
+              lastVideoIdRef.current = nextId;
+            }
+            playNext();
+          }
         }}
         className="w-full h-full"
       />

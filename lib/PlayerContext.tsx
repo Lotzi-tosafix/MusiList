@@ -65,6 +65,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     setVideos(newVideos);
     setCurrentIndex(startIndex);
     setCurrentTime(0);
+    setDuration(0);
     setIsPlaying(true);
   };
 
@@ -72,6 +73,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     if (currentIndex < videos.length - 1) {
       setCurrentIndex(currentIndex + 1);
       setCurrentTime(0);
+      setDuration(0);
       setIsPlaying(true);
     }
   };
@@ -80,6 +82,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     if (currentIndex > 0) {
       setCurrentIndex(currentIndex - 1);
       setCurrentTime(0);
+      setDuration(0);
       setIsPlaying(true);
     }
   };
