@@ -1,7 +1,7 @@
 'use client';
 
 import { usePlayer } from '@/lib/PlayerContext';
-import { Play, Pause, SkipForward, SkipBack, Maximize2, X, ChevronUp, ChevronDown, Volume2, VolumeX } from 'lucide-react';
+import { Play, Pause, SkipForward, SkipBack, Maximize2, X, ChevronUp, ChevronDown, Volume2, VolumeX, ListMusic } from 'lucide-react';
 import { useState, useRef, useLayoutEffect, useEffect } from 'react';
 import YouTube, { YouTubeProps } from 'react-youtube';
 
@@ -24,10 +24,44 @@ export default function GlobalPlayer() {
     setVolume,
     isLocalPlayerActive,
     videoAnchor,
+    playlistTitle,
     playlistId
   } = usePlayer();
   
   const [isMinimized, setIsMinimized] = useState(false);
+  const trackedVideoIdRef = useRef<string | null>(null);
+
+  // Reset tracked state when video changes
+  useEffect(() => {
+    if (videos.length === 0 || currentIndex === -1) return;
+    const currentVid = videos[currentIndex];
+    if (currentVid && currentVid.id !== trackedVideoIdRef.current) {
+      trackedVideoIdRef.current = null;
+    }
+  }, [currentIndex, videos]);
+
+  // Track 90% play duration
+  useEffect(() => {
+    if (videos.length === 0 || currentIndex === -1) return;
+    const currentVid = videos[currentIndex];
+    if (!currentVid) return;
+    if (trackedVideoIdRef.current === currentVid.id) return;
+
+    if (duration > 0 && currentTime > 0) {
+      const percentage = currentTime / duration;
+      if (percentage >= 0.90) {
+        trackedVideoIdRef.current = currentVid.id;
+        fetch('/api/plays/track', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            videoId: currentVid.id,
+            playlistId: playlistId || null
+          })
+        }).catch(err => console.error('Error tracking play:', err));
+      }
+    }
+  }, [currentTime, duration, currentIndex, videos, playlistId]);
   
   useLayoutEffect(() => {
     const mainEl = document.querySelector('main');
@@ -82,6 +116,13 @@ export default function GlobalPlayer() {
     }
   };
 
+  const handleChapterClick = (startTime: number) => {
+    setCurrentTime(startTime);
+    if (playerTarget) {
+       playerTarget.seekTo(startTime, true);
+    }
+  };
+
   return (
     <>
       <div className={`fixed bottom-0 left-0 right-0 z-50 bg-slate-950/95 backdrop-blur-lg border-t border-slate-800 transition-transform duration-300 ${isMinimized ? 'translate-y-full' : 'translate-y-0'}`}>
@@ -99,21 +140,29 @@ export default function GlobalPlayer() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-24 flex items-center gap-4">
         
         {/* Video Thumbnail / Mini Player */}
-        <Link href={`/playlist/${playlistId}`} className="hidden sm:block relative w-32 h-16 bg-black rounded-md overflow-hidden shrink-0 group hover:opacity-80 transition-opacity">
+        <Link 
+          href="/now-playing"
+          className="hidden sm:block relative w-32 h-16 bg-black rounded-md overflow-hidden shrink-0 group hover:ring-2 hover:ring-violet-500/80 transition-all cursor-pointer"
+          title="פתח את נגן 'משמיע כעת'"
+        >
           <img 
             src={currentVideo.thumbnail || 'https://picsum.photos/seed/placeholder/1280/720'} 
             alt={currentVideo.title}
-            className="w-full h-full object-cover"
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
           />
         </Link>
 
         {/* Info */}
-        <div className="hidden md:block w-48 min-w-0 shrink-0">
-          <p className="text-white font-medium truncate text-sm">{currentVideo.title}</p>
-          <p className="text-xs text-slate-400 truncate">
-            {currentIndex + 1} מתוך {videos.length}
+        <Link 
+          href="/now-playing"
+          className="hidden md:block w-48 min-w-0 shrink-0 hover:opacity-80 transition-opacity cursor-pointer text-right"
+          title="פתח את נגן 'משמיע כעת'"
+        >
+          <p className="text-white font-medium truncate text-sm hover:text-violet-400 transition-colors" title={currentVideo.title}>{currentVideo.title}</p>
+          <p className="text-xs text-slate-400 truncate flex items-center gap-1 justify-end">
+             <ListMusic className="w-3 h-3" /> {playlistTitle || 'רשימת השמעה'} ({currentIndex + 1}/{videos.length})
           </p>
-        </div>
+        </Link>
 
         {/* Center Controls & Timeline */}
         <div className="flex-1 flex flex-col justify-center items-center gap-2">
@@ -144,20 +193,46 @@ export default function GlobalPlayer() {
           </div>
           
           {/* Timeline */}
-          <div className="w-full max-w-xl flex items-center gap-3 text-xs text-slate-400 px-4">
+          <div className="w-full max-w-xl flex items-center gap-3 text-xs text-slate-400 px-4 relative">
             <span>{formatTime(duration || 0)}</span>
-            <input 
-              type="range" 
-              min={0} 
-              max={duration || 100} 
-              value={currentTime || 0} 
-              onChange={handleSeek}
-              dir="ltr"
-              className="flex-1 h-1 bg-slate-700 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:rounded-full"
-              style={{
-                background: `linear-gradient(to right, #8b5cf6 ${duration ? ((currentTime || 0) / duration) * 100 : 0}%, #334155 ${duration ? ((currentTime || 0) / duration) * 100 : 0}%)`
-              }}
-            />
+            <div className="flex-1 relative h-1 group cursor-pointer flex items-center">
+              <input 
+                type="range" 
+                min={0} 
+                max={duration || 100} 
+                value={currentTime || 0} 
+                onChange={handleSeek}
+                dir="ltr"
+                className="absolute inset-0 w-full h-full z-10 opacity-0 cursor-pointer"
+              />
+              <div 
+                className="w-full h-1 bg-slate-700 rounded-lg overflow-hidden absolute"
+                dir="ltr"
+              >
+                 <div 
+                   className="h-full bg-violet-500 transition-all duration-100 ease-linear"
+                   style={{ width: `${duration ? ((currentTime || 0) / duration) * 100 : 0}%` }}
+                 />
+              </div>
+              
+              {/* Chapters Markers */}
+              {currentVideo.chapters && currentVideo.chapters.length > 0 && duration > 0 && (
+                 <div className="absolute inset-0 w-full h-full pointer-events-none" dir="ltr">
+                    {currentVideo.chapters.map(chapter => (
+                       <div 
+                         key={chapter.id}
+                         className="absolute top-0 bottom-0 w-0.5 bg-black/60 z-20 pointer-events-auto hover:w-1 hover:bg-white transition-all group/marker"
+                         style={{ left: `${(chapter.start_time / duration) * 100}%` }}
+                         onClick={() => handleChapterClick(chapter.start_time)}
+                       >
+                          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover/marker:opacity-100 transition-opacity whitespace-nowrap">
+                            {chapter.title}
+                          </div>
+                       </div>
+                    ))}
+                 </div>
+              )}
+            </div>
             <span>{formatTime(currentTime || 0)}</span>
           </div>
         </div>

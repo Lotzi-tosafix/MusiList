@@ -1,13 +1,21 @@
 'use client';
 
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
-import { VideoRow } from '@/lib/api';
+import { VideoRow, ChannelRow, ChapterRow } from '@/lib/api';
+
+export type PlayableVideo = VideoRow & {
+  channel?: ChannelRow;
+  chapters?: ChapterRow[];
+  youtube_id: string; // for compatibility
+};
 
 interface PlayerContextType {
+  playlistTitle: string | null;
   playlistId: string | null;
-  videos: VideoRow[];
+  videos: PlayableVideo[];
   currentIndex: number;
-  playVideo: (playlistId: string, videos: VideoRow[], startIndex: number) => void;
+  setPlaylist: (videos: PlayableVideo[], title?: string, playlistId?: string | null) => void;
+  playVideo: (index: number) => void;
   playNext: () => void;
   playPrevious: () => void;
   isPlaying: boolean;
@@ -25,14 +33,15 @@ interface PlayerContextType {
   setIsLocalPlayerActive: (active: boolean) => void;
   videoAnchor: HTMLElement | null;
   setVideoAnchor: (el: HTMLElement | null) => void;
-  updateGlobalPlaylist: (newVideos: VideoRow[], newIndex: number) => void;
+  updateGlobalPlaylist: (newVideos: PlayableVideo[], newIndex: number) => void;
 }
 
 const PlayerContext = createContext<PlayerContextType | undefined>(undefined);
 
 export function PlayerProvider({ children }: { children: ReactNode }) {
+  const [playlistTitle, setPlaylistTitle] = useState<string | null>(null);
   const [playlistId, setPlaylistId] = useState<string | null>(null);
-  const [videos, setVideos] = useState<VideoRow[]>([]);
+  const [videos, setVideos] = useState<PlayableVideo[]>([]);
   const [currentIndex, setCurrentIndex] = useState<number>(-1);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   
@@ -60,10 +69,14 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     return () => clearInterval(interval);
   }, [playerTarget]);
 
-  const playVideo = (newPlaylistId: string, newVideos: VideoRow[], startIndex: number) => {
-    setPlaylistId(newPlaylistId);
+  const setPlaylist = (newVideos: PlayableVideo[], title?: string, newPlaylistId?: string | null) => {
     setVideos(newVideos);
-    setCurrentIndex(startIndex);
+    if (title) setPlaylistTitle(title);
+    setPlaylistId(newPlaylistId !== undefined ? newPlaylistId : null);
+  };
+
+  const playVideo = (index: number) => {
+    setCurrentIndex(index);
     setCurrentTime(0);
     setDuration(0);
     setIsPlaying(true);
@@ -87,7 +100,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const updateGlobalPlaylist = (newVideos: VideoRow[], newIndex: number) => {
+  const updateGlobalPlaylist = (newVideos: PlayableVideo[], newIndex: number) => {
     setVideos(newVideos);
     setCurrentIndex(newIndex);
   };
@@ -95,9 +108,11 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   return (
     <PlayerContext.Provider
       value={{
+        playlistTitle,
         playlistId,
         videos,
         currentIndex,
+        setPlaylist,
         playVideo,
         playNext,
         playPrevious,

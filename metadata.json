@@ -1,6 +1,6 @@
 {
-  "name": "MusiList",
-  "description": "YouTube music playlist sharing and management application",
+  "name": "MusicLi",
+  "description": "Music portal for importing YouTube channels and managing music.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

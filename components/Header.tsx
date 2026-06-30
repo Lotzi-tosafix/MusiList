@@ -55,7 +55,7 @@ export default function Header() {
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchVal.trim()) {
-      router.push(`/playlists?q=${encodeURIComponent(searchVal.trim())}`);
+      router.push(`/search?q=${encodeURIComponent(searchVal.trim())}`);
     }
   };
 
@@ -72,7 +72,7 @@ export default function Header() {
             </div>
             <div className="flex flex-col">
               <span className="font-display font-black text-xl sm:text-2xl tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white via-slate-100 to-slate-400 cursor-pointer">
-                MusiList
+                MusicLi
               </span>
               <span className="text-[10px] text-violet-400/80 font-bold tracking-widest uppercase -mt-1 hidden sm:inline">
                 קהילת פלייליסטים
@@ -106,29 +106,27 @@ export default function Header() {
           >
             ראשי
           </Link>
-          
+
+          <Link 
+            href="/songs" 
+            className={`px-3 py-1.5 rounded-full transition-all text-xs sm:text-sm cursor-pointer ${
+              pathname.startsWith('/songs') 
+                ? 'bg-slate-900 text-white border border-slate-800' 
+                : 'text-slate-400 hover:text-white hover:bg-slate-900/40'
+            }`}
+          >
+            שירים
+          </Link>
+
           <Link 
             href="/playlists" 
-            className={`px-3 py-1.5 rounded-full transition-all text-xs sm:text-sm cursor-pointer flex items-center gap-1.5 ${
+            className={`px-3 py-1.5 rounded-full transition-all text-xs sm:text-sm cursor-pointer ${
               pathname.startsWith('/playlists') 
                 ? 'bg-slate-900 text-white border border-slate-800' 
                 : 'text-slate-400 hover:text-white hover:bg-slate-900/40'
             }`}
           >
-            <List className="w-4 h-4 text-violet-400 hidden sm:inline" />
-            <span>פלייליסטים</span>
-          </Link>
-
-          <Link 
-            href="/create" 
-            className={`px-3 py-1.5 rounded-full transition-all text-xs sm:text-sm cursor-pointer flex items-center gap-1.5 ${
-              pathname === '/create' 
-                ? 'bg-slate-900 text-white border border-slate-800' 
-                : 'text-slate-400 hover:text-white hover:bg-slate-900/40'
-            }`}
-          >
-            <Plus className="w-4 h-4 text-cyan-400 hidden sm:inline" />
-            <span>ייבוא פלייליסט</span>
+            פלייליסטים
           </Link>
 
           {isAdmin && (

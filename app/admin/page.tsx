@@ -1,30 +1,26 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Settings, Users, Music, Tag, AlertCircle, Loader2 } from 'lucide-react';
+import { Settings, Users, Music, Tag, AlertCircle, Loader2, Plus, RefreshCw } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
-import { PlaylistWithVideos } from '@/lib/api';
 import { User } from '@supabase/supabase-js';
 import { useRouter } from 'next/navigation';
 
 export default function AdminDashboard() {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
-  const [playlists, setPlaylists] = useState<PlaylistWithVideos[]>([]);
-  const [tags, setTags] = useState<string[]>([]);
+  const [channels, setChannels] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [importUrl, setImportUrl] = useState('');
+  const [importing, setImporting] = useState(false);
+  const [importError, setImportError] = useState('');
+  const [importSuccess, setImportSuccess] = useState('');
 
   const fetchData = async () => {
     setLoading(true);
-    const { data: pData } = await supabase.from('playlists').select('*, videos(*)').order('created_at', { ascending: false });
-    if (pData) {
-      setPlaylists(pData as any);
-      
-      const tagSet = new Set<string>();
-      (pData as any[]).forEach(row => {
-        if (row.tags) row.tags.forEach((tag: string) => tagSet.add(tag));
-      });
-      setTags(Array.from(tagSet));
+    const { data: cData } = await supabase.from('channels').select('*').order('last_sync_at', { ascending: false });
+    if (cData) {
+      setChannels(cData);
     }
     setLoading(false);
   };
@@ -53,20 +49,47 @@ export default function AdminDashboard() {
     return () => subscription.unsubscribe();
   }, []);
 
-  const handleDeletePlaylist = async (id: string) => {
-    if (!confirm('האם אתה בטוח שברצונך למחוק פלייליסט זה?')) return;
+  const handleImportChannel = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!importUrl) return;
+
+    setImporting(true);
+    setImportError('');
+    setImportSuccess('');
+
+    try {
+      const res = await fetch('/api/youtube/channel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ channelUrl: importUrl })
+      });
+
+      const data = await res.json();
+      
+      if (!res.ok) {
+        throw new Error(data.error || 'שגיאה בייבוא הערוץ');
+      }
+
+      setImportSuccess('הערוץ יובא בהצלחה! השירים מסתנכרנים ברקע.');
+      setImportUrl('');
+      fetchData(); // Refresh list
+    } catch (err: any) {
+      setImportError(err.message);
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const handleDeleteChannel = async (id: string) => {
+    if (!confirm('האם אתה בטוח שברצונך למחוק ערוץ זה? כל השירים והפלייליסטים שלו יימחקו גם כן.')) return;
     
     try {
-      await supabase.from('playlist_plays').delete().eq('playlist_id', id);
-      await supabase.from('videos').delete().eq('playlist_id', id);
-      
-      const { error } = await supabase.from('playlists').delete().eq('id', id);
+      const { error } = await supabase.from('channels').delete().eq('id', id);
       if (error) throw error;
-      
-      setPlaylists(playlists.filter(p => p.id !== id));
+      setChannels(channels.filter(c => c.id !== id));
     } catch (err: any) {
-      console.error('Error deleting playlist:', err);
-      alert('שגיאה במחיקת הפלייליסט: ' + (err.message || ''));
+      console.error('Error deleting channel:', err);
+      alert('שגיאה במחיקת הערוץ: ' + (err.message || ''));
     }
   };
 
@@ -122,7 +145,7 @@ export default function AdminDashboard() {
     <div className="space-y-8">
       <div className="flex items-center justify-between pb-6 border-b border-slate-800">
         <div>
-          <h1 className="text-3xl font-bold text-white mb-2">לוח בקרה (Admin)</h1>
+          <h1 className="text-3xl font-bold text-white mb-2">לוח בקרה (Admin) - MusicLi</h1>
           <p className="text-slate-400">שלום, y0527148273@gmail.com</p>
         </div>
         <button
@@ -133,73 +156,75 @@ export default function AdminDashboard() {
         </button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="bg-slate-900/40 p-6 rounded-2xl border border-slate-800 shadow-sm flex items-center gap-4">
           <div className="w-12 h-12 bg-violet-900/30 text-violet-400 rounded-xl flex items-center justify-center">
-            <Music className="w-6 h-6" />
-          </div>
-          <div>
-            <p className="text-sm font-medium text-slate-400">סה&quot;כ פלייליסטים</p>
-            <p className="text-2xl font-bold text-white">{playlists.length}</p>
-          </div>
-        </div>
-        <div className="bg-slate-900/40 p-6 rounded-2xl border border-slate-800 shadow-sm flex items-center gap-4">
-          <div className="w-12 h-12 bg-cyan-900/30 text-cyan-400 rounded-xl flex items-center justify-center">
-            <Tag className="w-6 h-6" />
-          </div>
-          <div>
-            <p className="text-sm font-medium text-slate-400">תגיות פעילות</p>
-            <p className="text-2xl font-bold text-white">{tags.length}</p>
-          </div>
-        </div>
-        <div className="bg-slate-900/40 p-6 rounded-2xl border border-slate-800 shadow-sm flex items-center gap-4">
-          <div className="w-12 h-12 bg-blue-900/30 text-blue-400 rounded-xl flex items-center justify-center">
             <Users className="w-6 h-6" />
           </div>
           <div>
-            <p className="text-sm font-medium text-slate-400">משתמשים רשומים</p>
-            <p className="text-2xl font-bold text-white">3</p>
+            <p className="text-sm font-medium text-slate-400">סה&quot;כ ערוצים</p>
+            <p className="text-2xl font-bold text-white">{channels.length}</p>
           </div>
+        </div>
+        
+        {/* Import Form */}
+        <div className="bg-slate-900/40 p-6 rounded-2xl border border-slate-800 shadow-sm">
+           <h2 className="text-lg font-bold text-white mb-4 flex items-center gap-2"><Plus className="w-5 h-5 text-violet-400"/> ייבוא ערוץ חדש</h2>
+           <form onSubmit={handleImportChannel} className="flex gap-2">
+             <input 
+                type="text" 
+                value={importUrl}
+                onChange={(e) => setImportUrl(e.target.value)}
+                placeholder="קישור לערוץ ביוטיוב (לדוגמה /channel/UC...)"
+                className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-4 py-2 text-white focus:outline-none focus:border-violet-500"
+                dir="ltr"
+             />
+             <button
+               type="submit"
+               disabled={importing || !importUrl}
+               className="bg-violet-600 hover:bg-violet-500 text-white px-6 py-2 rounded-xl font-medium transition-colors disabled:opacity-50 flex items-center gap-2"
+             >
+               {importing ? <Loader2 className="w-4 h-4 animate-spin"/> : <RefreshCw className="w-4 h-4"/>}
+               ייבא
+             </button>
+           </form>
+           {importError && <p className="text-red-400 text-sm mt-3 flex items-center gap-1"><AlertCircle className="w-4 h-4"/> {importError}</p>}
+           {importSuccess && <p className="text-green-400 text-sm mt-3">{importSuccess}</p>}
         </div>
       </div>
 
       <div className="bg-slate-900/40 rounded-2xl border border-slate-800 shadow-sm overflow-hidden">
         <div className="p-6 border-b border-slate-800">
-          <h2 className="text-lg font-bold text-white">ניהול פלייליסטים</h2>
+          <h2 className="text-lg font-bold text-white">ניהול ערוצים</h2>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-right text-sm">
             <thead className="bg-slate-950/50 text-slate-400 border-b border-slate-800">
               <tr>
-                <th className="px-6 py-4 font-medium">שם הפלייליסט</th>
-                <th className="px-6 py-4 font-medium">יוצר</th>
-                <th className="px-6 py-4 font-medium">השמעות</th>
-                <th className="px-6 py-4 font-medium">סטטוס</th>
+                <th className="px-6 py-4 font-medium">ערוץ</th>
+                <th className="px-6 py-4 font-medium">מזהה</th>
+                <th className="px-6 py-4 font-medium">סנכרון אחרון</th>
                 <th className="px-6 py-4 font-medium">פעולות</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800">
-              {playlists.map((playlist) => (
-                <tr key={playlist.id} className="hover:bg-slate-800/40 transition-colors">
-                  <td className="px-6 py-4 font-medium text-white">{playlist.title}</td>
-                  <td className="px-6 py-4 text-slate-400">{playlist.creator_id || 'אנונימי'}</td>
-                  <td className="px-6 py-4 text-slate-400">{(playlist.play_count || 0).toLocaleString()}</td>
-                  <td className="px-6 py-4">
-                    <span className={`px-2.5 py-1 rounded-full text-xs font-medium border ${
-                      playlist.is_public ? 'bg-cyan-900/30 text-cyan-400 border-cyan-500/30' : 'bg-slate-800 text-slate-400 border-slate-700'
-                    }`}>
-                      {playlist.is_public ? 'ציבורי' : 'פרטי'}
-                    </span>
+              {channels.map((channel) => (
+                <tr key={channel.id} className="hover:bg-slate-800/40 transition-colors">
+                  <td className="px-6 py-4 font-medium text-white flex items-center gap-3">
+                    {channel.thumbnail ? <img src={channel.thumbnail} className="w-8 h-8 rounded-full" /> : <div className="w-8 h-8 rounded-full bg-slate-800" />}
+                    {channel.title}
                   </td>
+                  <td className="px-6 py-4 text-slate-400 font-mono text-xs">{channel.id}</td>
+                  <td className="px-6 py-4 text-slate-400">{new Date(channel.last_sync_at).toLocaleDateString('he-IL')}</td>
                   <td className="px-6 py-4">
-                    <button onClick={() => handleDeletePlaylist(playlist.id)} className="text-red-400 hover:text-red-300 font-medium">מחק</button>
+                    <button onClick={() => handleDeleteChannel(channel.id)} className="text-red-400 hover:text-red-300 font-medium">מחק</button>
                   </td>
                 </tr>
               ))}
-              {playlists.length === 0 && (
+              {channels.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="px-6 py-10 text-center text-slate-500">
-                    אין פלייליסטים במערכת
+                  <td colSpan={4} className="px-6 py-10 text-center text-slate-500">
+                    אין ערוצים במערכת
                   </td>
                 </tr>
               )}

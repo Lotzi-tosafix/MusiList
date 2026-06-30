@@ -9,94 +9,119 @@ export type Json =
 export interface Database {
   public: {
     Tables: {
-      playlists: {
+      channels: {
         Row: {
           id: string
           title: string
-          description: string | null
-          tags: string[] | null
-          is_public: boolean
-          play_count: number
-          creator_id: string | null
-          created_at: string
+          thumbnail: string | null
+          last_sync_at: string | null
         }
         Insert: {
-          id?: string
+          id: string
           title: string
-          description?: string | null
-          tags?: string[] | null
-          is_public?: boolean
-          play_count?: number
-          creator_id?: string | null
-          created_at?: string
+          thumbnail?: string | null
+          last_sync_at?: string | null
         }
         Update: {
           id?: string
           title?: string
-          description?: string | null
-          tags?: string[] | null
-          is_public?: boolean
-          play_count?: number
-          creator_id?: string | null
-          created_at?: string
+          thumbnail?: string | null
+          last_sync_at?: string | null
         }
       }
       videos: {
         Row: {
           id: string
-          playlist_id: string
-          youtube_id: string
+          channel_id: string
           title: string
+          description: string | null
           thumbnail: string | null
-          duration: string | null
-          likes: number | null
-          position: number
-          created_at: string
-          published_at: string | null
+          duration: number | null
           view_count: number | null
+          like_count: number | null
+          published_at: string | null
         }
         Insert: {
-          id?: string
-          playlist_id: string
-          youtube_id: string
+          id: string
+          channel_id: string
           title: string
+          description?: string | null
           thumbnail?: string | null
-          duration?: string | null
-          likes?: number | null
-          position?: number
-          created_at?: string
-          published_at?: string | null
+          duration?: number | null
           view_count?: number | null
+          like_count?: number | null
+          published_at?: string | null
         }
         Update: {
           id?: string
-          playlist_id?: string
-          youtube_id?: string
+          channel_id?: string
           title?: string
+          description?: string | null
           thumbnail?: string | null
-          duration?: string | null
-          likes?: number | null
-          position?: number
-          created_at?: string
-          published_at?: string | null
+          duration?: number | null
           view_count?: number | null
+          like_count?: number | null
+          published_at?: string | null
         }
       }
-      playlist_plays: {
+      playlists: {
         Row: {
           id: string
-          playlist_id: string
-          played_at: string
+          channel_id: string
+          title: string
+          last_sync_at: string | null
+          thumbnail: string | null
         }
         Insert: {
-          id?: string
-          playlist_id: string
-          played_at?: string
+          id: string
+          channel_id: string
+          title: string
+          last_sync_at?: string | null
+          thumbnail?: string | null
         }
         Update: {
           id?: string
+          channel_id?: string
+          title?: string
+          last_sync_at?: string | null
+          thumbnail?: string | null
+        }
+      }
+      playlist_items: {
+        Row: {
+          playlist_id: string
+          video_id: string
+          position: number
+        }
+        Insert: {
+          playlist_id: string
+          video_id: string
+          position: number
+        }
+        Update: {
           playlist_id?: string
-          played_at?: string
+          video_id?: string
+          position?: number
+        }
+      }
+      video_chapters: {
+        Row: {
+          id: string
+          video_id: string
+          title: string
+          start_time: number
+        }
+        Insert: {
+          id?: string
+          video_id: string
+          title: string
+          start_time: number
+        }
+        Update: {
+          id?: string
+          video_id?: string
+          title?: string
+          start_time?: number
         }
       }
     }

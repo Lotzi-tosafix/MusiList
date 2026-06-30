@@ -17,8 +17,8 @@ const spaceGrotesk = Space_Grotesk({
 });
 
 export const metadata: Metadata = {
-  title: 'MusiList',
-  description: 'Share and remix YouTube music playlists',
+  title: 'MusicLi',
+  description: 'Music portal for importing YouTube channels and managing music',
 };
 
 export default function RootLayout({children}: {children: React.ReactNode}) {
