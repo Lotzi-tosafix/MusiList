@@ -1,6 +1,6 @@
 {
-  "name": "MusicLi",
-  "description": "Music portal for importing YouTube channels and managing music.",
+  "name": "מיוזיקלי",
+  "description": "קהילת שירים ופלייליסטים מיוטיוב",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

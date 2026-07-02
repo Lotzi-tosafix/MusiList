@@ -1,109 +1,229 @@
-import { getHotPlaylists, getAllPlaylists } from '@/lib/plays';
-import Link from 'next/link';
-import { Music4, CalendarDays, Play } from 'lucide-react';
+"use client";
 
-export const dynamic = 'force-dynamic';
+import { useState, useEffect, use } from "react";
+import Link from "next/link";
+import Image from "next/image";
+import {
+  Play,
+  CalendarDays,
+  Flame,
+  Search,
+  ArrowRight,
+  Music,
+  Loader2,
+  Heart,
+  Plus,
+} from "lucide-react";
+import { PlaylistWithSongs } from "@/lib/api";
+import { supabase } from "@/lib/supabase";
 
-export default async function PlaylistsPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ tab?: string }>;
+export const dynamic = "force-dynamic";
+
+export default function PlaylistsPage(props: {
+  searchParams: Promise<{ sort?: string }>;
 }) {
-  const { tab } = await searchParams;
-  const activeTab = tab === 'hot' ? 'hot' : 'new';
+  const searchParams = use(props.searchParams);
+  const initialSort = searchParams.sort === "trending" ? "trending" : "recent";
 
-  const playlists = activeTab === 'hot'
-    ? await getHotPlaylists(100)
-    : await getAllPlaylists();
+  const [playlists, setPlaylists] = useState<PlaylistWithSongs[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveSort] = useState<"recent" | "trending">(
+    initialSort,
+  );
+  const [searchQuery, setSearchQuery] = useState("");
+
+  useEffect(() => {
+    async function fetchPlaylists() {
+      setLoading(true);
+      try {
+        const sortBy = activeTab === "recent" ? "created_at" : "play_count";
+        const { data, error } = await supabase
+          .from("playlists")
+          .select(
+            `
+            *,
+            playlist_songs (
+              position,
+              songs (*)
+            )
+          `,
+          )
+          .eq("is_public", true)
+          .order(sortBy, { ascending: false });
+
+        if (error) {
+          console.error("Error fetching playlists:", error);
+        } else {
+          const list = data as any[];
+          const formatted = list.map((pl) => {
+            const songs = (pl.playlist_songs || [])
+              .map((ps: any) => ({ ...ps.songs, position: ps.position }))
+              .sort((a: any, b: any) => a.position - b.position);
+            return { ...pl, songs };
+          }) as PlaylistWithSongs[];
+          setPlaylists(formatted);
+        }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchPlaylists();
+  }, [activeTab]);
+
+  const filteredPlaylists = playlists.filter((playlist) => {
+    const query = searchQuery.toLowerCase().trim();
+    if (!query) return true;
+    return (
+      playlist.title.toLowerCase().includes(query) ||
+      (playlist.description || "").toLowerCase().includes(query)
+    );
+  });
 
   return (
-    <div className="max-w-7xl mx-auto space-y-8 pb-20">
-      {/* Title */}
-      <div className="text-right">
-        <h1 className="text-3xl md:text-4xl font-black font-display text-white tracking-tight mb-2">
-          כל הפלייליסטים באתר
-        </h1>
-        <p className="text-slate-400 text-sm">
-          חקור פלייליסטים, אלבומים ואוספי שירים מכל הערוצים והיוצרים
-        </p>
+    <div className="space-y-8 py-6">
+      {/* Header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800/60 pb-6">
+        <div>
+          <Link
+            href="/"
+            className="inline-flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 hover:text-violet-600 dark:hover:text-violet-400 transition-colors mb-3"
+          >
+            <ArrowRight className="w-3.5 h-3.5" />
+            <span>חזרה לראשי</span>
+          </Link>
+          <h1 className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight flex items-center gap-2 font-display">
+            <Music className="w-8 h-8 text-violet-600 dark:text-violet-500 animate-bounce" />
+            גלה פלייליסטים
+          </h1>
+          <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
+            דפדף בכל הפלייליסטים הציבוריים שנוצרו על ידי הקהילה
+          </p>
+        </div>
+
+        {/* Search & Actions */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto">
+          <Link
+            href="/create"
+            className="flex items-center justify-center gap-2 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white text-sm font-semibold px-5 py-2.5 rounded-full shadow-md shadow-violet-500/10 hover:shadow-violet-500/20 transition-all cursor-pointer whitespace-nowrap"
+          >
+            <Plus className="w-4 h-4" />
+            <span>ייבוא פלייליסט</span>
+          </Link>
+
+          <div className="relative w-full md:w-80">
+            <Search className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <input
+              type="text"
+              placeholder="חיפוש פלייליסט או קטגוריה..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full bg-slate-100 dark:bg-slate-900/60 text-slate-900 dark:text-white placeholder-slate-400 text-sm pl-4 pr-10 py-2.5 rounded-full border border-slate-200 dark:border-slate-800 focus:outline-none focus:border-violet-500/80 transition-colors focus:ring-1 focus:ring-violet-500/30"
+            />
+          </div>
+        </div>
       </div>
 
-      {/* Tabs Menu */}
-      <div className="flex justify-start border-b border-slate-800">
-        <div className="flex gap-4">
-          <Link
-            href="/playlists?tab=new"
-            className={`py-3 px-6 text-sm font-semibold border-b-2 transition-all ${
-              activeTab === 'new'
-                ? 'border-violet-500 text-violet-400'
-                : 'border-transparent text-slate-400 hover:text-slate-200'
+      {/* Sorting Tabs / Menu */}
+      <div className="flex items-center justify-center sm:justify-start">
+        <div className="flex p-1 bg-slate-100 dark:bg-slate-950/60 rounded-xl border border-slate-200 dark:border-slate-800/80">
+          <button
+            onClick={() => setActiveSort("recent")}
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold transition-all ${
+              activeTab === "recent"
+                ? "bg-violet-600 text-white shadow-md shadow-violet-600/10"
+                : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-900/40"
             }`}
           >
-            פלייליסטים חדשים
-          </Link>
-          <Link
-            href="/playlists?tab=hot"
-            className={`py-3 px-6 text-sm font-semibold border-b-2 transition-all ${
-              activeTab === 'hot'
-                ? 'border-violet-500 text-violet-400'
-                : 'border-transparent text-slate-400 hover:text-slate-200'
+            <CalendarDays className="w-4 h-4" />
+            <span>החדשים ביותר</span>
+          </button>
+
+          <button
+            onClick={() => setActiveSort("trending")}
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold transition-all ${
+              activeTab === "trending"
+                ? "bg-orange-600 text-white shadow-md shadow-orange-600/10"
+                : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-900/40"
             }`}
           >
-            פלייליסטים חמים
-          </Link>
+            <Flame className="w-4 h-4" />
+            <span>הנצפים ביותר</span>
+          </button>
         </div>
       </div>
 
       {/* Playlists Grid */}
-      {playlists.length > 0 ? (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
-          {playlists.map((playlist) => (
-            <Link
-              key={playlist.id}
-              href={`/playlist/${playlist.id}`}
-              className="group relative bg-slate-900/40 rounded-2xl border border-slate-800/80 p-4 hover:bg-slate-900/80 hover:border-violet-500/40 transition-all duration-300 hover:shadow-xl hover:shadow-violet-950/20 flex flex-col justify-between"
-            >
-              <div>
-                {/* Playlist Art Cover */}
-                <div className="aspect-square relative rounded-xl overflow-hidden bg-slate-950 border border-slate-800/60 mb-4 flex items-center justify-center">
-                  <div className="absolute inset-0 bg-gradient-to-br from-violet-600/10 via-indigo-500/5 to-cyan-400/5 group-hover:opacity-80 transition-opacity" />
-                  
-                  <Music4 className="w-16 h-16 text-slate-700 group-hover:text-violet-500/60 transition-colors duration-300" />
-                  
-                  <div className="absolute bottom-3 right-3 bg-slate-950/80 backdrop-blur-md px-2.5 py-1 rounded-md border border-slate-800/50 text-[10px] font-mono text-slate-400 font-bold">
-                    פלייליסט
-                  </div>
-
-                  {/* Play Hover Overlay */}
-                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                    <div className="w-12 h-12 bg-violet-600 rounded-full flex items-center justify-center text-white shadow-lg transform translate-y-4 group-hover:translate-y-0 transition-all duration-300">
-                      <Play className="w-6 h-6 fill-current ml-1" />
+      {loading ? (
+        <div className="flex flex-col items-center justify-center py-20 gap-3">
+          <Loader2 className="w-10 h-10 text-violet-500 animate-spin" />
+          <p className="text-sm text-slate-400 font-medium">
+            טוען פלייליסטים...
+          </p>
+        </div>
+      ) : filteredPlaylists.length === 0 ? (
+        <div className="text-center py-20 bg-slate-900/10 rounded-2xl border border-slate-800/40 border-dashed">
+          <p className="text-slate-400 text-base">
+            לא נמצאו פלייליסטים תואמים לחיפוש שלך.
+          </p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+          {filteredPlaylists.map((playlist) => {
+            const thumbnail =
+              playlist.songs?.[0]?.thumbnail_url ||
+              playlist.thumbnail_url ||
+              "https://picsum.photos/seed/placeholder/640/360";
+            return (
+              <Link
+                href={`/playlist/${playlist.id}`}
+                key={playlist.id}
+                className="group flex flex-col bg-white dark:bg-slate-900/40 rounded-2xl border border-slate-200 dark:border-slate-800/60 overflow-hidden hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-all duration-300 shadow-sm dark:shadow-none"
+              >
+                <div className="relative aspect-video bg-slate-100 dark:bg-slate-800 overflow-hidden">
+                  <Image
+                    src={thumbnail}
+                    alt={playlist.title}
+                    fill
+                    sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                    referrerPolicy="no-referrer"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>
+                  <div className="absolute inset-0 bg-black/20 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="w-11 h-11 bg-black/40 backdrop-blur-md rounded-full flex items-center justify-center text-white shadow-lg">
+                      <Play className="w-4 h-4 ml-0.5" />
                     </div>
+                  </div>
+                  <div className="absolute bottom-3 right-3 bg-violet-600/90 backdrop-blur-sm text-white text-[10px] px-2 py-0.5 rounded font-bold">
+                    {(playlist.songs || []).length} שירים
                   </div>
                 </div>
 
-                <h3 className="text-white font-semibold text-sm sm:text-base line-clamp-1 group-hover:text-violet-300 transition-colors mb-1 text-right" title={playlist.title}>
-                  {playlist.title}
-                </h3>
-              </div>
-
-              <div className="mt-2 pt-2 border-t border-slate-800/50">
-                <p className="text-slate-400 text-xs line-clamp-1 text-right font-medium">
-                  {playlist.channel?.title}
-                </p>
-                {playlist.last_sync_at && (
-                  <p className="text-[10px] text-slate-500 flex items-center gap-1 justify-end mt-1">
-                    <CalendarDays className="w-3 h-3 text-slate-600" />
-                    סונכרן: {new Date(playlist.last_sync_at).toLocaleDateString('he-IL')}
+                <div className="p-4 flex flex-col flex-1 min-h-[140px]">
+                  <h3 className="font-bold text-sm text-slate-900 dark:text-white mb-1 group-hover:text-violet-600 dark:group-hover:text-violet-400 transition-colors line-clamp-1 leading-snug">
+                    {playlist.title}
+                  </h3>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 mb-3 line-clamp-2 flex-1 leading-relaxed">
+                    {playlist.description || "אין תיאור זמין לפלייליסט זה."}
                   </p>
-                )}
-              </div>
-            </Link>
-          ))}
-        </div>
-      ) : (
-        <div className="text-center py-20 bg-slate-900/30 rounded-2xl border border-slate-800 border-dashed text-slate-500">
-          אין פלייליסטים להצגה כרגע.
+
+                  <div className="flex items-center justify-between mt-auto pt-2 border-t border-slate-200 dark:border-slate-800/40">
+                    <div className="text-[10px] font-semibold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800/80 px-2 py-0.5 rounded-full flex items-center gap-1 border border-slate-200 dark:border-transparent">
+                      <Play className="w-2.5 h-2.5 text-cyan-500 dark:text-cyan-400" />
+                      {(playlist.play_count || 0).toLocaleString()}
+                    </div>
+                    <div className="text-[10px] font-semibold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800/80 px-2 py-0.5 rounded-full flex items-center gap-1 border border-slate-200 dark:border-transparent">
+                      <Heart className="w-2.5 h-2.5 text-rose-500 fill-rose-500" />
+                      {(playlist.likes_count || 0).toLocaleString()}
+                    </div>
+                  </div>
+                </div>
+              </Link>
+            );
+          })}
         </div>
       )}
     </div>

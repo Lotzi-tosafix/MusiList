@@ -1,55 +1,55 @@
-import { getRecentVideos } from '@/lib/api';
-import { getHotSongs, getHotPlaylists, getAllPlaylists } from '@/lib/plays';
-import VideoCarousel from '@/components/VideoCarousel';
-import PlaylistCarousel from '@/components/PlaylistCarousel';
+import {
+  getTrendingPlaylists,
+  getRecentPlaylists,
+  getTrendingSongs,
+  getRecentSongs,
+} from "@/lib/api";
+import PlaylistCarousel from "@/components/PlaylistCarousel";
+import SongCarousel from "@/components/SongCarousel";
 
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
 export default async function Home() {
-  // Parallel fetch of all sliders' data
-  const [
-    recentVideos,
-    hotVideos,
-    allPlaylists,
-    hotPlaylists,
-  ] = await Promise.all([
-    getRecentVideos(10),
-    getHotSongs(10),
-    getAllPlaylists(),
-    getHotPlaylists(10),
-  ]);
-
-  // For "New Playlists", take the first 10
-  const recentPlaylists = allPlaylists.slice(0, 10);
+  const [trendingPlaylists, recentPlaylists, trendingSongs, recentSongs] =
+    await Promise.all([
+      getTrendingPlaylists(),
+      getRecentPlaylists(),
+      getTrendingSongs(),
+      getRecentSongs(),
+    ]);
 
   return (
     <div className="space-y-16 py-6">
-      {/* New Songs Slider */}
-      <VideoCarousel
-        videos={recentVideos}
+      {/* New Songs Carousel */}
+      <SongCarousel
+        songs={recentSongs}
         title="שירים חדשים"
-        viewAllLink="/songs?tab=new"
+        type="recent"
+        viewAllHref="/songs?sort=recent"
       />
 
-      {/* Hot Songs Slider */}
-      <VideoCarousel
-        videos={hotVideos}
-        title="שירים חמים באתר"
-        viewAllLink="/songs?tab=hot"
-      />
-
-      {/* New Playlists Slider */}
+      {/* Recent Playlists Carousel */}
       <PlaylistCarousel
         playlists={recentPlaylists}
         title="פלייליסטים חדשים"
-        viewAllLink="/playlists?tab=new"
+        type="recent"
+        viewAllHref="/playlists?sort=recent"
       />
 
-      {/* Hot Playlists Slider */}
+      {/* Hot Songs Carousel */}
+      <SongCarousel
+        songs={trendingSongs}
+        title="שירים חמים"
+        type="trending"
+        viewAllHref="/songs?sort=trending"
+      />
+
+      {/* Hot Playlists Carousel */}
       <PlaylistCarousel
-        playlists={hotPlaylists}
-        title="פלייליסטים חמים באתר"
-        viewAllLink="/playlists?tab=hot"
+        playlists={trendingPlaylists}
+        title="פלייליסטים חמים"
+        type="trending"
+        viewAllHref="/playlists?sort=trending"
       />
     </div>
   );

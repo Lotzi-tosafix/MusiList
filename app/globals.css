@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@variant dark (&:where(.dark, .dark *));
+
 @layer base {
   button, 
   [role="button"],
@@ -22,11 +24,12 @@
   .custom-scrollbar:hover::-webkit-scrollbar-thumb {
     background-color: rgba(124, 58, 237, 0.6);
   }
-  .scrollbar-none::-webkit-scrollbar {
-    display: none;
+
+  input[type="range"].custom-slider {
+    background: linear-gradient(to right, #8b5cf6 var(--value-percent, 0%), #cbd5e1 var(--value-percent, 0%)) !important;
   }
-  .scrollbar-none {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
+
+  .dark input[type="range"].custom-slider {
+    background: linear-gradient(to right, #a78bfa var(--value-percent, 0%), #334155 var(--value-percent, 0%)) !important;
   }
 }

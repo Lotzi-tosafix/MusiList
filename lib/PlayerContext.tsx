@@ -1,21 +1,14 @@
 'use client';
 
-import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
-import { VideoRow, ChannelRow, ChapterRow } from '@/lib/api';
-
-export type PlayableVideo = VideoRow & {
-  channel?: ChannelRow;
-  chapters?: ChapterRow[];
-  youtube_id: string; // for compatibility
-};
+import React, { createContext, useContext, useState, ReactNode, useEffect, useRef } from 'react';
+import { SongRow } from '@/lib/api';
+import { supabase } from '@/lib/supabase';
 
 interface PlayerContextType {
-  playlistTitle: string | null;
   playlistId: string | null;
-  videos: PlayableVideo[];
+  videos: SongRow[];
   currentIndex: number;
-  setPlaylist: (videos: PlayableVideo[], title?: string, playlistId?: string | null) => void;
-  playVideo: (index: number) => void;
+  playVideo: (playlistId: string | null, videos: SongRow[], startIndex: number) => void;
   playNext: () => void;
   playPrevious: () => void;
   isPlaying: boolean;
@@ -33,15 +26,14 @@ interface PlayerContextType {
   setIsLocalPlayerActive: (active: boolean) => void;
   videoAnchor: HTMLElement | null;
   setVideoAnchor: (el: HTMLElement | null) => void;
-  updateGlobalPlaylist: (newVideos: PlayableVideo[], newIndex: number) => void;
+  updateGlobalPlaylist: (newVideos: SongRow[], newIndex: number) => void;
 }
 
 const PlayerContext = createContext<PlayerContextType | undefined>(undefined);
 
 export function PlayerProvider({ children }: { children: ReactNode }) {
-  const [playlistTitle, setPlaylistTitle] = useState<string | null>(null);
   const [playlistId, setPlaylistId] = useState<string | null>(null);
-  const [videos, setVideos] = useState<PlayableVideo[]>([]);
+  const [videos, setVideos] = useState<SongRow[]>([]);
   const [currentIndex, setCurrentIndex] = useState<number>(-1);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   
@@ -52,34 +44,68 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const [isLocalPlayerActive, setIsLocalPlayerActive] = useState<boolean>(false);
   const [videoAnchor, setVideoAnchor] = useState<HTMLElement | null>(null);
 
+  // Tracking 90% play
+  const hasTrackedPlay = useRef<boolean>(false);
+  const sessionPlayedCount = useRef<number>(0);
+
+  useEffect(() => {
+    hasTrackedPlay.current = false;
+  }, [currentIndex, videos]);
+
   useEffect(() => {
     if (!playerTarget) return;
 
     const interval = setInterval(() => {
       try {
+        let currTime = 0;
+        let dur = 0;
         if (playerTarget.getCurrentTime) {
-          setCurrentTime(playerTarget.getCurrentTime());
+          currTime = playerTarget.getCurrentTime();
+          setCurrentTime(currTime);
         }
         if (playerTarget.getDuration) {
-          setDuration(playerTarget.getDuration());
+          dur = playerTarget.getDuration();
+          setDuration(dur);
+        }
+
+        // 90% tracking
+        if (dur > 0 && currTime / dur >= 0.9 && !hasTrackedPlay.current && videos[currentIndex]) {
+          hasTrackedPlay.current = true;
+          sessionPlayedCount.current += 1;
+          
+          // Increment song play count
+          const currentSongId = videos[currentIndex].id;
+          if (currentSongId) {
+            fetch('/api/youtube', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ action: 'record_play', songId: currentSongId })
+            }).catch(console.error);
+          }
+
+          // If playlist and 3 songs played 90%
+          if (playlistId && sessionPlayedCount.current % 3 === 0) {
+            fetch('/api/youtube', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ action: 'record_playlist_play', playlistId })
+            }).catch(console.error);
+          }
         }
       } catch (e) {}
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [playerTarget]);
+  }, [playerTarget, currentIndex, videos, playlistId]);
 
-  const setPlaylist = (newVideos: PlayableVideo[], title?: string, newPlaylistId?: string | null) => {
+  const playVideo = (newPlaylistId: string | null, newVideos: SongRow[], startIndex: number) => {
+    setPlaylistId(newPlaylistId);
     setVideos(newVideos);
-    if (title) setPlaylistTitle(title);
-    setPlaylistId(newPlaylistId !== undefined ? newPlaylistId : null);
-  };
-
-  const playVideo = (index: number) => {
-    setCurrentIndex(index);
+    setCurrentIndex(startIndex);
     setCurrentTime(0);
     setDuration(0);
     setIsPlaying(true);
+    sessionPlayedCount.current = 0;
   };
 
   const playNext = () => {
@@ -100,7 +126,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const updateGlobalPlaylist = (newVideos: PlayableVideo[], newIndex: number) => {
+  const updateGlobalPlaylist = (newVideos: SongRow[], newIndex: number) => {
     setVideos(newVideos);
     setCurrentIndex(newIndex);
   };
@@ -108,11 +134,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   return (
     <PlayerContext.Provider
       value={{
-        playlistTitle,
         playlistId,
         videos,
         currentIndex,
-        setPlaylist,
         playVideo,
         playNext,
         playPrevious,

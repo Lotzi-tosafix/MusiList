@@ -4,138 +4,145 @@ export type Json =
   | boolean
   | null
   | { [key: string]: Json | undefined }
-  | Json[]
+  | Json[];
 
 export interface Database {
   public: {
     Tables: {
       channels: {
         Row: {
-          id: string
-          title: string
-          thumbnail: string | null
-          last_sync_at: string | null
-        }
+          id: string;
+          youtube_id: string;
+          title: string;
+          created_at: string;
+          songs_last_updated: string;
+          playlists_last_updated: string;
+        };
         Insert: {
-          id: string
-          title: string
-          thumbnail?: string | null
-          last_sync_at?: string | null
-        }
+          id?: string;
+          youtube_id: string;
+          title: string;
+          created_at?: string;
+          songs_last_updated?: string;
+          playlists_last_updated?: string;
+        };
         Update: {
-          id?: string
-          title?: string
-          thumbnail?: string | null
-          last_sync_at?: string | null
-        }
-      }
-      videos: {
+          id?: string;
+          youtube_id?: string;
+          title?: string;
+          created_at?: string;
+          songs_last_updated?: string;
+          playlists_last_updated?: string;
+        };
+      };
+      songs: {
         Row: {
-          id: string
-          channel_id: string
-          title: string
-          description: string | null
-          thumbnail: string | null
-          duration: number | null
-          view_count: number | null
-          like_count: number | null
-          published_at: string | null
-        }
+          id: string;
+          youtube_id: string;
+          title: string;
+          thumbnail_url: string | null;
+          duration: number;
+          channel_id: string | null;
+          published_at: string;
+          created_at: string;
+          play_count: number;
+          likes_count: number;
+        };
         Insert: {
-          id: string
-          channel_id: string
-          title: string
-          description?: string | null
-          thumbnail?: string | null
-          duration?: number | null
-          view_count?: number | null
-          like_count?: number | null
-          published_at?: string | null
-        }
+          id?: string;
+          youtube_id: string;
+          title: string;
+          thumbnail_url?: string | null;
+          duration?: number;
+          channel_id?: string | null;
+          published_at?: string;
+          created_at?: string;
+          play_count?: number;
+          likes_count?: number;
+        };
         Update: {
-          id?: string
-          channel_id?: string
-          title?: string
-          description?: string | null
-          thumbnail?: string | null
-          duration?: number | null
-          view_count?: number | null
-          like_count?: number | null
-          published_at?: string | null
-        }
-      }
+          id?: string;
+          youtube_id?: string;
+          title?: string;
+          thumbnail_url?: string | null;
+          duration?: number;
+          channel_id?: string | null;
+          published_at?: string;
+          created_at?: string;
+          play_count?: number;
+          likes_count?: number;
+        };
+      };
       playlists: {
         Row: {
-          id: string
-          channel_id: string
-          title: string
-          last_sync_at: string | null
-          thumbnail: string | null
-        }
+          id: string;
+          youtube_id: string;
+          title: string;
+          description: string | null;
+          thumbnail_url: string | null;
+          channel_id: string | null;
+          created_at: string;
+          last_updated_at: string;
+          play_count: number;
+          likes_count: number;
+        };
         Insert: {
-          id: string
-          channel_id: string
-          title: string
-          last_sync_at?: string | null
-          thumbnail?: string | null
-        }
+          id?: string;
+          youtube_id: string;
+          title: string;
+          description?: string | null;
+          thumbnail_url?: string | null;
+          channel_id?: string | null;
+          created_at?: string;
+          last_updated_at?: string;
+          play_count?: number;
+          likes_count?: number;
+        };
         Update: {
-          id?: string
-          channel_id?: string
-          title?: string
-          last_sync_at?: string | null
-          thumbnail?: string | null
-        }
-      }
-      playlist_items: {
+          id?: string;
+          youtube_id?: string;
+          title?: string;
+          description?: string | null;
+          thumbnail_url?: string | null;
+          channel_id?: string | null;
+          created_at?: string;
+          last_updated_at?: string;
+          play_count?: number;
+          likes_count?: number;
+        };
+      };
+      playlist_songs: {
         Row: {
-          playlist_id: string
-          video_id: string
-          position: number
-        }
+          id: string;
+          playlist_id: string;
+          song_id: string;
+          position: number;
+        };
         Insert: {
-          playlist_id: string
-          video_id: string
-          position: number
-        }
+          id?: string;
+          playlist_id: string;
+          song_id: string;
+          position: number;
+        };
         Update: {
-          playlist_id?: string
-          video_id?: string
-          position?: number
-        }
-      }
-      video_chapters: {
-        Row: {
-          id: string
-          video_id: string
-          title: string
-          start_time: number
-        }
-        Insert: {
-          id?: string
-          video_id: string
-          title: string
-          start_time: number
-        }
-        Update: {
-          id?: string
-          video_id?: string
-          title?: string
-          start_time?: number
-        }
-      }
-    }
+          id?: string;
+          playlist_id?: string;
+          song_id?: string;
+          position?: number;
+        };
+      };
+    };
     Views: {
-      [_ in never]: never
-    }
+      [_ in never]: never;
+    };
     Functions: {
-      [_ in never]: never
-    }
+      [_ in never]: never;
+    };
     Enums: {
-      [_ in never]: never
-    }
+      [_ in never]: never;
+    };
     CompositeTypes: {
-      [_ in never]: never
-    }
-  }
+      [_ in never]: never;
+    };
+  };
 }
