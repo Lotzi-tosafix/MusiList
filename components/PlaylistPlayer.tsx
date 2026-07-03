@@ -487,10 +487,10 @@ export default function PlaylistPlayer({
 
               <button
                 onClick={toggleLikesSort}
-                className={`flex items-center gap-1 px-3 py-1.5 rounded-lg transition-colors border ${likesSortDir ? "bg-rose-100 dark:bg-rose-950/40 border-rose-300 dark:border-rose-500/50 text-rose-700 dark:text-rose-300" : "bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300"}`}
+                className={`flex items-center gap-1 px-3 py-1.5 rounded-lg transition-colors border ${likesSortDir ? "bg-violet-100 dark:bg-violet-900/40 border-violet-300 dark:border-violet-500/50 text-violet-700 dark:text-violet-300" : "bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300"}`}
                 title="מיון לפי לייקים"
               >
-                <Heart className="w-4 h-4 text-rose-500 fill-rose-500" />
+                <Heart className={`w-4 h-4 ${likesSortDir ? "text-violet-600 dark:text-violet-400 fill-violet-600 dark:fill-violet-400" : "text-slate-500 dark:text-slate-400"}`} />
                 {likesSortDir === "asc" ? (
                   <ArrowUp className="w-3 h-3" />
                 ) : (

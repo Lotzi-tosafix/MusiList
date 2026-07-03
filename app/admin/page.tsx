@@ -147,14 +147,14 @@ export default function AdminDashboard() {
 
   if (!isAdmin) {
     return (
-      <div className="max-w-md mx-auto mt-20 p-8 bg-slate-900/60 rounded-3xl shadow-2xl border border-slate-800 text-center">
-        <div className="w-16 h-16 bg-violet-900/50 text-violet-400 rounded-2xl flex items-center justify-center mx-auto mb-6">
+      <div className="max-w-md mx-auto mt-20 p-8 bg-white dark:bg-slate-900/60 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 text-center">
+        <div className="w-16 h-16 bg-violet-100 dark:bg-violet-900/50 text-violet-600 dark:text-violet-400 rounded-2xl flex items-center justify-center mx-auto mb-6">
           <Settings className="w-8 h-8" />
         </div>
-        <h1 className="text-2xl font-bold text-white mb-2">
+        <h1 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">
           כניסה לממשק ניהול
         </h1>
-        <p className="text-slate-400 mb-8">
+        <p className="text-slate-600 dark:text-slate-400 mb-8">
           {user
             ? `מחובר כ: ${user.email}. אין לך הרשאות ניהול.`
             : "רק מנהלים מורשים יכולים לגשת לעמוד זה."}
@@ -163,7 +163,7 @@ export default function AdminDashboard() {
         {!user && (
           <button
             onClick={handleLogin}
-            className="w-full bg-white hover:bg-gray-100 text-gray-900 font-medium py-3 rounded-xl transition-all shadow-lg flex justify-center items-center gap-3 cursor-pointer"
+            className="w-full bg-white dark:bg-white hover:bg-slate-50 dark:hover:bg-slate-100 text-slate-900 font-medium py-3 rounded-xl transition-all shadow-lg border border-slate-200 dark:border-transparent flex justify-center items-center gap-3 cursor-pointer"
           >
             <svg
               className="w-5 h-5"
@@ -196,52 +196,52 @@ export default function AdminDashboard() {
 
   return (
     <div className="space-y-8">
-      <div className="flex items-center justify-between pb-6 border-b border-slate-800">
+      <div className="flex items-center justify-between pb-6 border-b border-slate-200 dark:border-slate-800">
         <div>
-          <h1 className="text-3xl font-bold text-white mb-2">
+          <h1 className="text-3xl font-bold text-slate-900 dark:text-white mb-2">
             לוח בקרה (Admin)
           </h1>
-          <p className="text-slate-400">שלום, y0527148273@gmail.com</p>
+          <p className="text-slate-600 dark:text-slate-400">שלום, y0527148273@gmail.com</p>
         </div>
         <button
           onClick={() => supabase.auth.signOut()}
-          className="px-4 py-2 text-sm font-medium text-slate-400 hover:bg-slate-800 hover:text-white rounded-lg transition-colors"
+          className="px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white rounded-lg transition-colors"
         >
           התנתק
         </button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-slate-900/40 p-6 rounded-2xl border border-slate-800 shadow-sm flex items-center gap-4">
-          <div className="w-12 h-12 bg-violet-900/30 text-violet-400 rounded-xl flex items-center justify-center">
+        <div className="bg-white dark:bg-slate-900/40 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex items-center gap-4">
+          <div className="w-12 h-12 bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400 rounded-xl flex items-center justify-center">
             <Music className="w-6 h-6" />
           </div>
           <div>
-            <p className="text-sm font-medium text-slate-400">
+            <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
               סה&quot;כ פלייליסטים
             </p>
-            <p className="text-2xl font-bold text-white">{playlists.length}</p>
+            <p className="text-2xl font-bold text-slate-900 dark:text-white">{playlists.length}</p>
           </div>
         </div>
 
-        <div className="bg-slate-900/40 p-6 rounded-2xl border border-slate-800 shadow-sm flex items-center gap-4">
-          <div className="w-12 h-12 bg-indigo-900/30 text-indigo-400 rounded-xl flex items-center justify-center">
+        <div className="bg-white dark:bg-slate-900/40 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex items-center gap-4">
+          <div className="w-12 h-12 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-xl flex items-center justify-center">
             <Users className="w-6 h-6" />
           </div>
           <div>
-            <p className="text-sm font-medium text-slate-400">
+            <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
               סה&quot;כ ערוצים מיובאים
             </p>
-            <p className="text-2xl font-bold text-white">{channels.length}</p>
+            <p className="text-2xl font-bold text-slate-900 dark:text-white">{channels.length}</p>
           </div>
         </div>
 
-        <div className="bg-slate-900/40 p-6 rounded-2xl border border-slate-800 shadow-sm flex items-center gap-4">
-          <div className="w-12 h-12 bg-cyan-900/30 text-cyan-400 rounded-xl flex items-center justify-center">
+        <div className="bg-white dark:bg-slate-900/40 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex items-center gap-4">
+          <div className="w-12 h-12 bg-cyan-100 dark:bg-cyan-900/30 text-cyan-600 dark:text-cyan-400 rounded-xl flex items-center justify-center">
             <DownloadCloud className="w-6 h-6" />
           </div>
           <div className="flex-1">
-            <p className="text-sm font-medium text-slate-400 mb-1">
+            <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-1">
               ייבוא ערוץ יוטיוב
             </p>
             <div className="flex gap-2">
@@ -250,7 +250,7 @@ export default function AdminDashboard() {
                 placeholder="מזהה ערוץ (UC...) או קישור מלא"
                 value={channelId}
                 onChange={(e) => setChannelId(e.target.value)}
-                className="flex-1 bg-slate-800 text-white text-xs px-2 py-1.5 rounded border border-slate-700 font-sans"
+                className="flex-1 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-xs px-2 py-1.5 rounded border border-slate-200 dark:border-slate-700 font-sans focus:outline-none focus:border-violet-500"
               />
               <button
                 onClick={handleImportChannel}
@@ -268,13 +268,13 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      <div className="bg-slate-900/40 rounded-2xl border border-slate-800 shadow-sm overflow-hidden">
-        <div className="p-6 border-b border-slate-800">
-          <h2 className="text-lg font-bold text-white">ניהול פלייליסטים</h2>
+      <div className="bg-white dark:bg-slate-900/40 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+        <div className="p-6 border-b border-slate-200 dark:border-slate-800">
+          <h2 className="text-lg font-bold text-slate-900 dark:text-white">ניהול פלייליסטים</h2>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-right text-sm">
-            <thead className="bg-slate-950/50 text-slate-400 border-b border-slate-800">
+            <thead className="bg-slate-50 dark:bg-slate-950/50 text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800">
               <tr>
                 <th className="px-6 py-4 font-medium">שם הפלייליסט</th>
                 <th className="px-6 py-4 font-medium">ערוץ/יוצר</th>
@@ -283,32 +283,32 @@ export default function AdminDashboard() {
                 <th className="px-6 py-4 font-medium">פעולות</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800">
+            <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
               {playlists.map((playlist) => (
                 <tr
                   key={playlist.id}
-                  className="hover:bg-slate-800/40 transition-colors"
+                  className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors"
                 >
-                  <td className="px-6 py-4 font-medium text-white">
+                  <td className="px-6 py-4 font-medium text-slate-900 dark:text-white">
                     {playlist.title}
                   </td>
-                  <td className="px-6 py-4 text-slate-400">
+                  <td className="px-6 py-4 text-slate-600 dark:text-slate-400">
                     {(playlist as any).channels?.title || "אנונימי"}
                   </td>
-                  <td className="px-6 py-4 text-slate-400">
+                  <td className="px-6 py-4 text-slate-600 dark:text-slate-400">
                     {(playlist.play_count || 0).toLocaleString()}
                   </td>
                   <td className="px-6 py-4">
-                    <span className="px-2.5 py-1 rounded-full text-xs font-medium border bg-cyan-900/30 text-cyan-400 border-cyan-500/30">
+                    <span className="px-2.5 py-1 rounded-full text-xs font-medium border bg-cyan-50 dark:bg-cyan-900/30 text-cyan-600 dark:text-cyan-400 border-cyan-200 dark:border-cyan-500/30">
                       ציבורי
                     </span>
                   </td>
                   <td className="px-6 py-4">
                     <button
                       onClick={() => handleDeletePlaylist(playlist.id)}
-                      className="text-red-400 hover:text-red-300 font-medium cursor-pointer"
+                      className="text-red-500 dark:text-red-400 hover:text-red-600 dark:hover:text-red-300 font-medium cursor-pointer"
                     >
-                      מחק
+                      مחק
                     </button>
                   </td>
                 </tr>
@@ -317,7 +317,7 @@ export default function AdminDashboard() {
                 <tr>
                   <td
                     colSpan={5}
-                    className="px-6 py-10 text-center text-slate-500"
+                    className="px-6 py-10 text-center text-slate-400 dark:text-slate-500"
                   >
                     אין פלייליסטים במערכת
                   </td>
@@ -328,35 +328,35 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      <div className="bg-slate-900/40 rounded-2xl border border-slate-800 shadow-sm overflow-hidden mt-8">
-        <div className="p-6 border-b border-slate-800">
-          <h2 className="text-lg font-bold text-white">ניהול ערוצים</h2>
+      <div className="bg-white dark:bg-slate-900/40 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden mt-8">
+        <div className="p-6 border-b border-slate-200 dark:border-slate-800">
+          <h2 className="text-lg font-bold text-slate-900 dark:text-white">ניהול ערוצים</h2>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-right text-sm">
-            <thead className="bg-slate-950/50 text-slate-400 border-b border-slate-800">
+            <thead className="bg-slate-50 dark:bg-slate-950/50 text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800">
               <tr>
                 <th className="px-6 py-4 font-medium">שם הערוץ</th>
                 <th className="px-6 py-4 font-medium">מזהה YouTube</th>
                 <th className="px-6 py-4 font-medium">פעולות</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800">
+            <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
               {channels.map((channel) => (
                 <tr
                   key={channel.id}
-                  className="hover:bg-slate-800/40 transition-colors"
+                  className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors"
                 >
-                  <td className="px-6 py-4 font-medium text-white">
+                  <td className="px-6 py-4 font-medium text-slate-900 dark:text-white">
                     {channel.title}
                   </td>
-                  <td className="px-6 py-4 text-slate-400 font-mono text-xs">
+                  <td className="px-6 py-4 text-slate-600 dark:text-slate-400 font-mono text-xs">
                     {channel.youtube_id}
                   </td>
                   <td className="px-6 py-4">
                     <button
                       onClick={() => handleDeleteChannel(channel.id, channel.title)}
-                      className="text-red-400 hover:text-red-300 font-medium cursor-pointer"
+                      className="text-red-500 dark:text-red-400 hover:text-red-600 dark:hover:text-red-300 font-medium cursor-pointer"
                     >
                       מחק ערוץ וכל תכולתו
                     </button>
@@ -367,7 +367,7 @@ export default function AdminDashboard() {
                 <tr>
                   <td
                     colSpan={3}
-                    className="px-6 py-10 text-center text-slate-500"
+                    className="px-6 py-10 text-center text-slate-400 dark:text-slate-500"
                   >
                     אין ערוצים מיובאים במערכת
                   </td>
