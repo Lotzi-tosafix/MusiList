@@ -230,10 +230,10 @@ export default function PlaylistPlayer({
 
   const saveCustomOrder = (newSongs: SongRow[]) => {
     setSongs(newSongs);
+    setIsCustomOrder(true);
     if (user) {
       const key = `MusiList_custom_order_${user.id}_${playlist.id}`;
       localStorage.setItem(key, JSON.stringify(newSongs.map((v) => v.id)));
-      setIsCustomOrder(true);
     }
     if (isThisPlaylistPlaying && activeSong) {
       const newIndex = newSongs.findIndex((v) => v.id === activeSong.id);
@@ -428,7 +428,9 @@ export default function PlaylistPlayer({
       </div>
 
       {/* Playlist Videos */}
-      <div className="w-full lg:w-96 bg-white dark:bg-slate-900/40 rounded-2xl border border-slate-200 dark:border-slate-800 flex flex-col h-[calc(100vh-8rem)] sticky top-0 lg:top-8 shadow-md dark:shadow-2xl">
+      <div
+        className="w-full lg:w-96 bg-white dark:bg-slate-900/40 rounded-2xl border border-slate-200 dark:border-slate-800 flex flex-col sticky top-0 shadow-md dark:shadow-2xl h-[calc(100vh-10rem)]"
+      >
         <div className="p-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/50 rounded-t-2xl">
           <div className="flex items-center justify-between gap-2">
             <h2 className="font-bold text-slate-900 dark:text-white line-clamp-1 flex-1">
@@ -436,79 +438,122 @@ export default function PlaylistPlayer({
             </h2>
           </div>
 
-          {user && (
-            <div className="flex flex-wrap items-center gap-2 mt-4">
-              <button
-                onClick={shuffleSongs}
-                className="flex items-center justify-center p-2 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition-colors border border-slate-200 dark:border-slate-700 hover:text-slate-900 dark:hover:text-white"
-                title="סדר אקראי"
-              >
-                <Shuffle className="w-4 h-4" />
-              </button>
+          <div className="flex items-center justify-start gap-1 mt-4 w-full flex-wrap">
+            <button
+              onClick={shuffleSongs}
+              disabled={!user}
+              className={`flex items-center justify-center p-2 rounded-lg border transition-colors ${
+                !user
+                  ? "bg-slate-50 dark:bg-slate-900/10 text-slate-400 dark:text-slate-600 border-slate-200/50 dark:border-slate-800/50 cursor-not-allowed"
+                  : "bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white"
+              }`}
+              title={!user ? "אפשרות זו זמינה למשתמשים רשומים בלבד" : "סדר אקראי"}
+            >
+              <Shuffle className="w-3.5 h-3.5" />
+            </button>
 
-              <button
-                onClick={toggleAlphaSort}
-                className={`flex items-center gap-1 px-3 py-1.5 rounded-lg transition-colors border ${alphaSortDir ? "bg-violet-100 dark:bg-violet-900/40 border-violet-300 dark:border-violet-500/50 text-violet-700 dark:text-violet-300" : "bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300"}`}
-                title="מיון לפי א-ב"
-              >
-                {alphaSortDir === "desc" ? (
-                  <ArrowUpAZ className="w-4 h-4" />
-                ) : (
-                  <ArrowDownAZ className="w-4 h-4" />
-                )}
-                <span className="text-xs font-medium">א-ב</span>
-              </button>
-
-              <button
-                onClick={toggleDateSort}
-                className={`flex items-center gap-1 px-3 py-1.5 rounded-lg transition-colors border ${dateSortDir ? "bg-violet-100 dark:bg-violet-900/40 border-violet-300 dark:border-violet-500/50 text-violet-700 dark:text-violet-300" : "bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300"}`}
-                title="מיון לפי תאריך העלאה"
-              >
-                <CalendarDays className="w-4 h-4" />
-                {dateSortDir === "asc" ? (
-                  <ArrowUp className="w-3 h-3" />
-                ) : (
-                  <ArrowDown className="w-3 h-3" />
-                )}
-              </button>
-
-              <button
-                onClick={toggleViewsSort}
-                className={`flex items-center gap-1 px-3 py-1.5 rounded-lg transition-colors border ${viewsSortDir ? "bg-violet-100 dark:bg-violet-900/40 border-violet-300 dark:border-violet-500/50 text-violet-700 dark:text-violet-300" : "bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300"}`}
-                title="מיון לפי פופולריות (השמעות)"
-              >
-                <Eye className="w-4 h-4" />
-                {viewsSortDir === "asc" ? (
-                  <ArrowUp className="w-3 h-3" />
-                ) : (
-                  <ArrowDown className="w-3 h-3" />
-                )}
-              </button>
-
-              <button
-                onClick={toggleLikesSort}
-                className={`flex items-center gap-1 px-3 py-1.5 rounded-lg transition-colors border ${likesSortDir ? "bg-violet-100 dark:bg-violet-900/40 border-violet-300 dark:border-violet-500/50 text-violet-700 dark:text-violet-300" : "bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300"}`}
-                title="מיון לפי לייקים"
-              >
-                <Heart className={`w-4 h-4 ${likesSortDir ? "text-violet-600 dark:text-violet-400 fill-violet-600 dark:fill-violet-400" : "text-slate-500 dark:text-slate-400"}`} />
-                {likesSortDir === "asc" ? (
-                  <ArrowUp className="w-3 h-3" />
-                ) : (
-                  <ArrowDown className="w-3 h-3" />
-                )}
-              </button>
-
-              {isCustomOrder && (
-                <button
-                  onClick={resetOrder}
-                  className="flex items-center justify-center p-2 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 transition-colors border border-red-500/30 mr-auto"
-                  title="חזור לסדר המקורי"
-                >
-                  <RotateCcw className="w-4 h-4" />
-                </button>
+            <button
+              onClick={toggleAlphaSort}
+              disabled={!user}
+              className={`flex items-center gap-1 px-1.5 py-1.5 rounded-lg border text-[11px] font-medium transition-colors ${
+                !user
+                  ? "bg-slate-50 dark:bg-slate-900/10 text-slate-400 dark:text-slate-600 border-slate-200/50 dark:border-slate-800/50 cursor-not-allowed"
+                  : alphaSortDir
+                    ? "bg-violet-100 dark:bg-violet-900/40 border-violet-300 dark:border-violet-500/50 text-violet-700 dark:text-violet-300 font-semibold"
+                    : "bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white"
+              }`}
+              title={!user ? "אפשרות זו זמינה למשתמשים רשומים בלבד" : "מיון לפי א-ב"}
+            >
+              {alphaSortDir === "desc" ? (
+                <ArrowUpAZ className="w-3.5 h-3.5" />
+              ) : (
+                <ArrowDownAZ className="w-3.5 h-3.5" />
               )}
-            </div>
-          )}
+              <span>א-ב</span>
+            </button>
+
+            <button
+              onClick={toggleDateSort}
+              disabled={!user}
+              className={`flex items-center gap-1 px-1.5 py-1.5 rounded-lg border text-[11px] font-medium transition-colors ${
+                !user
+                  ? "bg-slate-50 dark:bg-slate-900/10 text-slate-400 dark:text-slate-600 border-slate-200/50 dark:border-slate-800/50 cursor-not-allowed"
+                  : dateSortDir
+                    ? "bg-violet-100 dark:bg-violet-900/40 border-violet-300 dark:border-violet-500/50 text-violet-700 dark:text-violet-300 font-semibold"
+                    : "bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white"
+              }`}
+              title={!user ? "אפשרות זו זמינה למשתמשים רשומים בלבד" : "מיון לפי תאריך העלאה"}
+            >
+              <CalendarDays className="w-3.5 h-3.5" />
+              <span>תאריך</span>
+              {dateSortDir && (
+                dateSortDir === "asc" ? (
+                  <ArrowUp className="w-2.5 h-2.5" />
+                ) : (
+                  <ArrowDown className="w-2.5 h-2.5" />
+                )
+              )}
+            </button>
+
+            <button
+              onClick={toggleViewsSort}
+              disabled={!user}
+              className={`flex items-center gap-1 px-1.5 py-1.5 rounded-lg border text-[11px] font-medium transition-colors ${
+                !user
+                  ? "bg-slate-50 dark:bg-slate-900/10 text-slate-400 dark:text-slate-600 border-slate-200/50 dark:border-slate-800/50 cursor-not-allowed"
+                  : viewsSortDir
+                    ? "bg-violet-100 dark:bg-violet-900/40 border-violet-300 dark:border-violet-500/50 text-violet-700 dark:text-violet-300 font-semibold"
+                    : "bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white"
+              }`}
+              title={!user ? "אפשרות זו זמינה למשתמשים רשומים בלבד" : "מיון לפי פופולריות"}
+            >
+              <Eye className="w-3.5 h-3.5" />
+              <span>צפיות</span>
+              {viewsSortDir && (
+                viewsSortDir === "asc" ? (
+                  <ArrowUp className="w-2.5 h-2.5" />
+                ) : (
+                  <ArrowDown className="w-2.5 h-2.5" />
+                )
+              )}
+            </button>
+
+            <button
+              onClick={toggleLikesSort}
+              disabled={!user}
+              className={`flex items-center gap-1 px-1.5 py-1.5 rounded-lg border text-[11px] font-medium transition-colors ${
+                !user
+                  ? "bg-slate-50 dark:bg-slate-900/10 text-slate-400 dark:text-slate-600 border-slate-200/50 dark:border-slate-800/50 cursor-not-allowed"
+                  : likesSortDir
+                    ? "bg-violet-100 dark:bg-violet-900/40 border-violet-300 dark:border-violet-500/50 text-violet-700 dark:text-violet-300 font-semibold"
+                    : "bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white"
+              }`}
+              title={!user ? "אפשרות זו זמינה למשתמשים רשומים בלבד" : "מיון לפי לייקים"}
+            >
+              <Heart className={`w-3.5 h-3.5 ${likesSortDir ? "text-violet-600 dark:text-violet-400 fill-violet-600 dark:fill-violet-400" : "text-slate-500 dark:text-slate-400"}`} />
+              <span>לייקים</span>
+              {likesSortDir && (
+                likesSortDir === "asc" ? (
+                  <ArrowUp className="w-2.5 h-2.5" />
+                ) : (
+                  <ArrowDown className="w-2.5 h-2.5" />
+                )
+              )}
+            </button>
+
+            <button
+              onClick={resetOrder}
+              disabled={!user || !isCustomOrder}
+              className={`flex items-center justify-center p-2 mr-auto rounded-lg border transition-colors ${
+                !user || !isCustomOrder
+                  ? "bg-slate-50 dark:bg-slate-900/10 text-slate-400 dark:text-slate-600 border-slate-200/50 dark:border-slate-800/50 cursor-not-allowed opacity-50"
+                  : "bg-red-500/10 hover:bg-red-500/20 text-red-500 dark:text-red-400 border-red-500/30"
+              }`}
+              title={!user ? "אפשרות זו זמינה למשתמשים רשומים בלבד" : !isCustomOrder ? "לא בוצעו שינויים בסדר הרשימה" : "חזור לסדר המקורי"}
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+            </button>
+          </div>
         </div>
 
         <div className="overflow-y-auto flex-1 p-2 space-y-1 custom-scrollbar">

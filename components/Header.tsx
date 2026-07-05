@@ -83,7 +83,7 @@ export default function Header() {
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchVal.trim()) {
-      router.push(`/playlists?q=${encodeURIComponent(searchVal.trim())}`);
+      router.push(`/search?q=${encodeURIComponent(searchVal.trim())}`);
     }
   };
 
@@ -184,7 +184,7 @@ export default function Header() {
 
           {/* Search Icon on Mobile */}
           <button
-            onClick={() => router.push("/playlists")}
+            onClick={() => router.push("/search")}
             className="p-1 sm:p-2 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white md:hidden cursor-pointer shrink-0"
             title="חיפוש"
           >

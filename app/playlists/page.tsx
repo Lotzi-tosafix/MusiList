@@ -20,17 +20,18 @@ import { supabase } from "@/lib/supabase";
 export const dynamic = "force-dynamic";
 
 export default function PlaylistsPage(props: {
-  searchParams: Promise<{ sort?: string }>;
+  searchParams: Promise<{ sort?: string; q?: string }>;
 }) {
   const searchParams = use(props.searchParams);
   const initialSort = searchParams.sort === "trending" ? "trending" : "recent";
+  const initialQuery = searchParams.q || "";
 
   const [playlists, setPlaylists] = useState<PlaylistWithSongs[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveSort] = useState<"recent" | "trending">(
     initialSort,
   );
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState(initialQuery);
 
   useEffect(() => {
     async function fetchPlaylists() {
@@ -48,7 +49,6 @@ export default function PlaylistsPage(props: {
             )
           `,
           )
-          .eq("is_public", true)
           .order(sortBy, { ascending: false });
 
         if (error) {
@@ -206,9 +206,13 @@ export default function PlaylistsPage(props: {
                   <h3 className="font-bold text-sm text-slate-900 dark:text-white mb-1 group-hover:text-violet-600 dark:group-hover:text-violet-400 transition-colors line-clamp-1 leading-snug">
                     {playlist.title}
                   </h3>
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400 mb-3 line-clamp-2 flex-1 leading-relaxed">
-                    {playlist.description || "אין תיאור זמין לפלייליסט זה."}
-                  </p>
+                  {playlist.description ? (
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 mb-3 line-clamp-2 flex-1 leading-relaxed">
+                      {playlist.description}
+                    </p>
+                  ) : (
+                    <div className="flex-1 mb-3"></div>
+                  )}
 
                   <div className="flex items-center justify-between mt-auto pt-2 border-t border-slate-200 dark:border-slate-800/40">
                     <div className="text-[10px] font-semibold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800/80 px-2 py-0.5 rounded-full flex items-center gap-1 border border-slate-200 dark:border-transparent">

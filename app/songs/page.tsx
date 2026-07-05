@@ -20,18 +20,19 @@ import { usePlayer } from "@/lib/PlayerContext";
 export const dynamic = "force-dynamic";
 
 export default function SongsPage(props: {
-  searchParams: Promise<{ sort?: string }>;
+  searchParams: Promise<{ sort?: string; q?: string }>;
 }) {
   const router = useRouter();
   const searchParams = use(props.searchParams);
   const initialSort = searchParams.sort === "trending" ? "trending" : "recent";
+  const initialQuery = searchParams.q || "";
 
   const [songs, setSongs] = useState<SongRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeSort, setActiveSort] = useState<"recent" | "trending">(
     initialSort,
   );
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState(initialQuery);
 
   const {
     playVideo,
