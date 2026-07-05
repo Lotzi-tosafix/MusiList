@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
 
     const apiKey = process.env.YOUTUBE_API_KEY;
     const db = supabase as any;
-    if (!apiKey && action === 'import_channel') {
+    if (!apiKey && (action === 'import_channel' || action === 'import_playlist' || (!action && body.url))) {
       return NextResponse.json({ error: 'מפתח API של יוטיוב חסר' }, { status: 500 });
     }
 
@@ -43,6 +43,98 @@ export async function POST(req: NextRequest) {
         await db.from('playlists').update({ play_count: Number(pl.play_count || 0) + 1 }).eq('id', playlistId);
       }
       return NextResponse.json({ success: true });
+    }
+
+    if (action === 'import_playlist' || (!action && body.url)) {
+      const { url } = body;
+      if (!url) return NextResponse.json({ error: 'Missing playlist URL' }, { status: 400 });
+
+      // Helper to parse YouTube playlist ID
+      const trimmedUrl = url.trim();
+      const listMatch = trimmedUrl.match(/[?&]list=([^#\&\?]+)/);
+      let playlistId = listMatch ? listMatch[1] : null;
+
+      if (!playlistId && /^[a-zA-Z0-9_-]{18,34}$/.test(trimmedUrl)) {
+        playlistId = trimmedUrl;
+      }
+
+      if (!playlistId) {
+        return NextResponse.json({ error: 'כתובת פלייליסט של יוטיוב לא תקינה' }, { status: 400 });
+      }
+
+      // 1. Fetch playlist metadata
+      const plMetadataRes = await fetch(`https://www.googleapis.com/youtube/v3/playlists?part=snippet&id=${playlistId}&key=${apiKey}`);
+      const plMetadataData = await plMetadataRes.json();
+
+      if (!plMetadataData.items || plMetadataData.items.length === 0) {
+        return NextResponse.json({ error: 'הפלייליסט לא נמצא ביוטיוב. ודא שהוא ציבורי/לא רשום.' }, { status: 404 });
+      }
+
+      const plSnippet = plMetadataData.items[0].snippet;
+      const playlistTitle = plSnippet.title;
+      const playlistDescription = plSnippet.description || '';
+
+      // 2. Fetch all playlist items (up to 4 pages = 200 items)
+      let pageToken = '';
+      let videos: any[] = [];
+      let keepFetching = true;
+      let iterations = 0;
+
+      while (keepFetching && iterations < 4) {
+        const itemsRes = await fetch(`https://www.googleapis.com/youtube/v3/playlistItems?part=snippet,contentDetails&maxResults=50&playlistId=${playlistId}&pageToken=${pageToken}&key=${apiKey}`);
+        const itemsData = await itemsRes.json();
+
+        if (!itemsData.items || itemsData.items.length === 0) break;
+
+        for (const item of itemsData.items) {
+          const thumbnails = item.snippet.thumbnails || {};
+          const thumb = thumbnails.maxres?.url || thumbnails.high?.url || thumbnails.medium?.url || thumbnails.default?.url || "https://picsum.photos/seed/placeholder/1280/720";
+
+          videos.push({
+            youtube_id: item.contentDetails.videoId,
+            title: item.snippet.title,
+            thumbnail: thumb,
+            published_at: item.contentDetails.videoPublishedAt || item.snippet.publishedAt || new Date().toISOString(),
+          });
+        }
+
+        pageToken = itemsData.nextPageToken || '';
+        if (!pageToken) keepFetching = false;
+        iterations++;
+      }
+
+      // 3. Enrich video details (batch of 50)
+      const videoIds = videos.map(v => v.youtube_id);
+      const durationMap: Record<string, number> = {};
+      const viewsMap: Record<string, number> = {};
+      const likesMap: Record<string, number> = {};
+
+      for (let i = 0; i < videoIds.length; i += 50) {
+        const chunk = videoIds.slice(i, i + 50);
+        const vidRes = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=contentDetails,statistics&id=${chunk.join(',')}&key=${apiKey}`);
+        const vidData = await vidRes.json();
+        if (vidData.items) {
+          vidData.items.forEach((v: any) => {
+            durationMap[v.id] = parseDuration(v.contentDetails.duration);
+            viewsMap[v.id] = v.statistics?.viewCount ? parseInt(v.statistics.viewCount, 10) : 0;
+            likesMap[v.id] = v.statistics?.likeCount ? parseInt(v.statistics.likeCount, 10) : 0;
+          });
+        }
+      }
+
+      const enrichedVideos = videos.map(v => ({
+        ...v,
+        duration: durationMap[v.youtube_id] || 0,
+        view_count: viewsMap[v.youtube_id] || 0,
+        likes_count: likesMap[v.youtube_id] || 0,
+      }));
+
+      return NextResponse.json({
+        youtube_id: playlistId,
+        title: playlistTitle,
+        description: playlistDescription,
+        videos: enrichedVideos,
+      });
     }
 
     if (action === 'import_channel') {

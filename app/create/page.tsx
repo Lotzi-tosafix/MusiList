@@ -172,7 +172,7 @@ export default function CreatePlaylist() {
       const res = await fetch("/api/youtube", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url }),
+        body: JSON.stringify({ action: "import_playlist", url }),
       });
 
       const data = await res.json();
@@ -230,14 +230,15 @@ export default function CreatePlaylist() {
 
     try {
       // 1. Insert Playlist
-      const { data: newPlaylist, error: playlistError } = await (
-        supabase as any
-      )
+      const firstVideoThumb = videos[0]?.thumbnail || null;
+      const { data: newPlaylist, error: playlistError } = await (supabase as any)
         .from("playlists")
         .insert([
           {
+            youtube_id: playlistData.youtube_id || null,
             title: playlistTitle,
             description: playlistDescription,
+            thumbnail_url: firstVideoThumb,
             tags,
             is_public: isPublic,
             play_count: 0,
@@ -250,25 +251,50 @@ export default function CreatePlaylist() {
       if (playlistError)
         throw new Error("שגיאה בשמירת הפלייליסט: " + playlistError.message);
 
-      // 2. Insert Videos
-      const videosToInsert = videos.map((v: any, index: number) => ({
-        playlist_id: newPlaylist.id,
+      // 2. Prepare and Upsert Songs (to ensure they exist in the `songs` table)
+      const songsToUpsert = videos.map((v: any) => ({
         youtube_id: v.youtube_id,
         title: v.title,
-        thumbnail: v.thumbnail,
-        position: index + 1, // Save according to their new reordered positions
-        published_at: v.published_at || v.publishedAt || null,
-        view_count: v.view_count ?? v.viewCount ?? null,
+        thumbnail_url: v.thumbnail || null,
+        duration: v.duration || 0,
+        published_at: v.published_at || v.publishedAt || new Date().toISOString(),
       }));
 
-      const { error: videosError } = await (supabase as any)
-        .from("videos")
-        .insert(videosToInsert);
+      const { data: upsertedSongs, error: songsError } = await (supabase as any)
+        .from("songs")
+        .upsert(songsToUpsert, { onConflict: "youtube_id" })
+        .select();
 
-      if (videosError)
-        throw new Error("שגיאה בשמירת הסרטונים: " + videosError.message);
+      if (songsError)
+        throw new Error("שגיאה בשמירת השירים במסד הנתונים: " + songsError.message);
 
-      // 3. Redirect to the new playlist
+      // 3. Create a map from youtube_id to song UUID
+      const songIdMap = new Map<string, string>();
+      (upsertedSongs || []).forEach((s: any) => {
+        songIdMap.set(s.youtube_id, s.id);
+      });
+
+      // 4. Construct playlist_songs records and link them
+      const playlistSongsToInsert = videos.map((v: any, index: number) => {
+        const songId = songIdMap.get(v.youtube_id);
+        if (!songId) {
+          throw new Error(`שגיאה במיפוי שיר: ${v.title}`);
+        }
+        return {
+          playlist_id: newPlaylist.id,
+          song_id: songId,
+          position: index + 1,
+        };
+      });
+
+      const { error: playlistSongsError } = await (supabase as any)
+        .from("playlist_songs")
+        .insert(playlistSongsToInsert);
+
+      if (playlistSongsError)
+        throw new Error("שגיאה בקישור השירים לפלייליסט: " + playlistSongsError.message);
+
+      // 5. Redirect to the new playlist
       router.push(`/playlist/${newPlaylist.id}`);
     } catch (err: any) {
       setError(err.message);

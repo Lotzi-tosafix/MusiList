@@ -428,9 +428,10 @@ export default function PlaylistPlayer({
       </div>
 
       {/* Playlist Videos */}
-      <div
-        className="w-full lg:w-96 bg-white dark:bg-slate-900/40 rounded-2xl border border-slate-200 dark:border-slate-800 flex flex-col sticky top-0 shadow-md dark:shadow-2xl h-[calc(100vh-10rem)]"
-      >
+      <div className="w-full lg:w-96 sticky top-24 lg:top-28 self-start">
+        <div
+          className="bg-white dark:bg-slate-900/40 rounded-2xl border border-slate-200 dark:border-slate-800 flex flex-col shadow-md dark:shadow-2xl h-[calc(100vh-14rem)] w-full"
+        >
         <div className="p-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/50 rounded-t-2xl">
           <div className="flex items-center justify-between gap-2">
             <h2 className="font-bold text-slate-900 dark:text-white line-clamp-1 flex-1">
@@ -594,5 +595,6 @@ export default function PlaylistPlayer({
         </div>
       </div>
     </div>
+  </div>
   );
 }

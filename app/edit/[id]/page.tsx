@@ -130,9 +130,15 @@ export default function EditPlaylist({
     setAuthLoading(false);
 
     try {
-      const { data: rawData, error: fetchError } = await supabase
+      const { data: rawData, error: fetchError } = await (supabase as any)
         .from("playlists")
-        .select("*, videos(*)")
+        .select(`
+          *,
+          playlist_songs (
+            position,
+            songs (*)
+          )
+        `)
         .eq("id", id)
         .single();
 
@@ -155,12 +161,21 @@ export default function EditPlaylist({
       setTags(data.tags || []);
       setIsPublic(data.is_public);
 
-      // Sort videos by position
-      const sortedVideos = [...(data.videos || [])].sort(
-        (a, b) => a.position - b.position,
-      );
-      setVideos(sortedVideos);
-      setOriginalVideos([...sortedVideos]);
+      // Map and Sort songs by position
+      const mappedVideos = (data.playlist_songs || [])
+        .map((ps: any) => ({
+          youtube_id: ps.songs.youtube_id,
+          title: ps.songs.title,
+          thumbnail: ps.songs.thumbnail_url,
+          thumbnail_url: ps.songs.thumbnail_url,
+          position: ps.position,
+          published_at: ps.songs.published_at,
+          play_count: ps.songs.play_count,
+        }))
+        .sort((a: any, b: any) => a.position - b.position);
+
+      setVideos(mappedVideos);
+      setOriginalVideos([...mappedVideos]);
 
       // Update popular tags with any existing tags
       const newPopular = (data.tags || []).filter(
@@ -260,11 +275,13 @@ export default function EditPlaylist({
 
     try {
       // 1. Update Playlist details
+      const firstVideoThumb = videos[0]?.thumbnail || videos[0]?.thumbnail_url || null;
       const { error: playlistError } = await (supabase as any)
         .from("playlists")
         .update({
           title: playlistTitle,
           description: playlistDescription,
+          thumbnail_url: firstVideoThumb,
           tags,
           is_public: isPublic,
         })
@@ -273,39 +290,59 @@ export default function EditPlaylist({
       if (playlistError)
         throw new Error("שגיאה בשמירת הפלייליסט: " + playlistError.message);
 
-      // 2. Delete all existing videos for this playlist (to re-insert them with new order)
-      // Actually, we could just update positions, but deleting and re-inserting is easier to manage adding/removing
-      // Since we don't have cascade delete configured here directly, we'll just update positions for existing ones
-      // Wait, deleting is simpler if we didn't change the IDs, but videos don't have constraints holding them back.
-      // Wait, there's `playlist_plays`? `playlist_plays` has `playlist_id`, not `video_id`.
-
-      const { error: deleteVideosError } = await (supabase as any)
-        .from("videos")
+      // 2. Delete all existing relations for this playlist in `playlist_songs`
+      const { error: deleteSongsError } = await (supabase as any)
+        .from("playlist_songs")
         .delete()
         .eq("playlist_id", id);
 
-      if (deleteVideosError)
+      if (deleteSongsError)
         throw new Error(
-          "שגיאה במחיקת סרטונים קודמים: " + deleteVideosError.message,
+          "שגיאה במחיקת שירים קודמים: " + deleteSongsError.message,
         );
 
-      // 3. Re-insert videos with new positions
-      const videosToInsert = videos.map((v: any, index: number) => ({
-        playlist_id: id,
+      // 3. Prepare and Upsert Songs (to ensure they exist in the `songs` table)
+      const songsToUpsert = videos.map((v: any) => ({
         youtube_id: v.youtube_id,
         title: v.title,
-        thumbnail: v.thumbnail,
-        position: index + 1,
-        published_at: v.published_at || v.publishedAt || null,
-        view_count: v.view_count ?? v.viewCount ?? null,
+        thumbnail_url: v.thumbnail || v.thumbnail_url || null,
+        duration: v.duration || 0,
+        published_at: v.published_at || v.publishedAt || new Date().toISOString(),
       }));
 
-      const { error: insertVideosError } = await (supabase as any)
-        .from("videos")
-        .insert(videosToInsert);
+      const { data: upsertedSongs, error: songsError } = await (supabase as any)
+        .from("songs")
+        .upsert(songsToUpsert, { onConflict: "youtube_id" })
+        .select();
 
-      if (insertVideosError)
-        throw new Error("שגיאה בשמירת הסרטונים: " + insertVideosError.message);
+      if (songsError)
+        throw new Error("שגיאה בשמירת השירים במסד הנתונים: " + songsError.message);
+
+      // 4. Create a map from youtube_id to song UUID
+      const songIdMap = new Map<string, string>();
+      (upsertedSongs || []).forEach((s: any) => {
+        songIdMap.set(s.youtube_id, s.id);
+      });
+
+      // 5. Construct playlist_songs records and link them
+      const playlistSongsToInsert = videos.map((v: any, index: number) => {
+        const songId = songIdMap.get(v.youtube_id);
+        if (!songId) {
+          throw new Error(`שגיאה במיפוי שיר: ${v.title}`);
+        }
+        return {
+          playlist_id: id,
+          song_id: songId,
+          position: index + 1,
+        };
+      });
+
+      const { error: playlistSongsError } = await (supabase as any)
+        .from("playlist_songs")
+        .insert(playlistSongsToInsert);
+
+      if (playlistSongsError)
+        throw new Error("שגיאה בקישור השירים לפלייליסט: " + playlistSongsError.message);
 
       router.push(`/playlist/${id}`);
     } catch (err: any) {
