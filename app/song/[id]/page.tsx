@@ -55,7 +55,7 @@ export default function SongPlaybackPage({
         let song: any = null;
         const { data: firstFetch, error: firstErr } = await supabase
           .from("songs")
-          .select("*, channels(*)")
+          .select("*, artists(*)")
           .eq("id", id)
           .maybeSingle();
 
@@ -64,7 +64,7 @@ export default function SongPlaybackPage({
         } else {
           const { data: fallbackFetch } = await supabase
             .from("songs")
-            .select("*, channels(*)")
+            .select("*, artists(*)")
             .eq("youtube_id", id)
             .maybeSingle();
           song = fallbackFetch;
@@ -76,26 +76,27 @@ export default function SongPlaybackPage({
           return;
         }
 
-        // Fetch other songs from the same channel to build a natural queue
+        // Fetch other songs from the same artist to build a natural queue
         let queueSongs = [song];
-        if (song.channel_id) {
-          const { data: chSongs } = await supabase
+        if (song.artist_id) {
+          const { data: artSongs } = await supabase
             .from("songs")
-            .select("*, channels(*)")
-            .eq("channel_id", song.channel_id)
+            .select("*, artists(*)")
+            .eq("artist_id", song.artist_id)
             .neq("id", song.id)
             .order("published_at", { ascending: false })
             .limit(20);
-          if (chSongs) {
-            queueSongs = [...queueSongs, ...chSongs];
+
+          if (artSongs) {
+            queueSongs = [...queueSongs, ...artSongs];
           }
         }
 
         setPlaylist({
           id: `song-queue-${id}`,
           title: song.title,
-          description: song.channels?.title
-            ? `שיר מאת: ${song.channels.title}`
+          description: song.artists?.name
+            ? `שיר מאת: ${song.artists.name}`
             : "השמעה יחידה",
           thumbnail_url: song.thumbnail_url,
           songs: queueSongs,

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import {
   Play,
   Copy,
@@ -412,6 +413,13 @@ export default function PlaylistPlayer({
           <h1 className="text-3xl font-bold text-slate-900 dark:text-white mb-2">
             {playlist.title}
           </h1>
+          
+          {playlist.artist && (
+            <Link href={`/artist/${playlist.artist.id}`} className="text-xl text-violet-600 dark:text-violet-400 font-medium hover:underline block mb-2">
+              {playlist.artist.name}
+            </Link>
+          )}
+
           <p className="text-slate-600 dark:text-slate-400 mb-4">{playlist.description}</p>
 
           <div className="flex flex-wrap items-center gap-4 text-sm text-slate-600 dark:text-slate-400 mb-6">
@@ -419,10 +427,17 @@ export default function PlaylistPlayer({
               <Play className="w-4 h-4 text-cyan-500 dark:text-cyan-400" />
               {(playlist.play_count || 0).toLocaleString()} השמעות
             </div>
-            <div className="flex items-center gap-1">
-              <Clock className="w-4 h-4 text-cyan-500 dark:text-cyan-400" />
-              נוצר לאחרונה
-            </div>
+            {playlist.release_year ? (
+              <div className="flex items-center gap-1">
+                <CalendarDays className="w-4 h-4 text-cyan-500 dark:text-cyan-400" />
+                {playlist.release_year}
+              </div>
+            ) : (
+              <div className="flex items-center gap-1">
+                <Clock className="w-4 h-4 text-cyan-500 dark:text-cyan-400" />
+                נוצר לאחרונה
+              </div>
+            )}
           </div>
         </div>
       </div>

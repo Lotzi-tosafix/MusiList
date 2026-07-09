@@ -9,30 +9,36 @@ export type Json =
 export interface Database {
   public: {
     Tables: {
-      channels: {
+      artists: {
         Row: {
           id: string;
           youtube_id: string;
-          title: string;
+          name: string;
+          avatar_url: string | null;
+          banner_url: string | null;
+          description: string | null;
           created_at: string;
-          songs_last_updated: string;
-          playlists_last_updated: string;
+          last_updated: string | null;
         };
         Insert: {
           id?: string;
           youtube_id: string;
-          title: string;
+          name: string;
+          avatar_url?: string | null;
+          banner_url?: string | null;
+          description?: string | null;
           created_at?: string;
-          songs_last_updated?: string;
-          playlists_last_updated?: string;
+          last_updated?: string | null;
         };
         Update: {
           id?: string;
           youtube_id?: string;
-          title?: string;
+          name?: string;
+          avatar_url?: string | null;
+          banner_url?: string | null;
+          description?: string | null;
           created_at?: string;
-          songs_last_updated?: string;
-          playlists_last_updated?: string;
+          last_updated?: string | null;
         };
       };
       songs: {
@@ -42,7 +48,8 @@ export interface Database {
           title: string;
           thumbnail_url: string | null;
           duration: number;
-          channel_id: string | null;
+          artist_id: string | null;
+          album_id: string | null;
           published_at: string;
           created_at: string;
           play_count: number;
@@ -54,7 +61,8 @@ export interface Database {
           title: string;
           thumbnail_url?: string | null;
           duration?: number;
-          channel_id?: string | null;
+          artist_id?: string | null;
+          album_id?: string | null;
           published_at?: string;
           created_at?: string;
           play_count?: number;
@@ -66,7 +74,8 @@ export interface Database {
           title?: string;
           thumbnail_url?: string | null;
           duration?: number;
-          channel_id?: string | null;
+          artist_id?: string | null;
+          album_id?: string | null;
           published_at?: string;
           created_at?: string;
           play_count?: number;
@@ -76,39 +85,54 @@ export interface Database {
       playlists: {
         Row: {
           id: string;
-          youtube_id: string;
+          youtube_id: string | null;
           title: string;
           description: string | null;
           thumbnail_url: string | null;
-          channel_id: string | null;
+          artist_id: string | null;
+          type: string | null;
+          release_year: number | null;
           created_at: string;
           last_updated_at: string;
           play_count: number;
           likes_count: number;
+          tags: string[] | null;
+          is_public: boolean | null;
+          creator_id: string | null;
         };
         Insert: {
           id?: string;
-          youtube_id: string;
+          youtube_id?: string | null;
           title: string;
           description?: string | null;
           thumbnail_url?: string | null;
-          channel_id?: string | null;
+          artist_id?: string | null;
+          type?: string | null;
+          release_year?: number | null;
           created_at?: string;
           last_updated_at?: string;
           play_count?: number;
           likes_count?: number;
+          tags?: string[] | null;
+          is_public?: boolean | null;
+          creator_id?: string | null;
         };
         Update: {
           id?: string;
-          youtube_id?: string;
+          youtube_id?: string | null;
           title?: string;
           description?: string | null;
           thumbnail_url?: string | null;
-          channel_id?: string | null;
+          artist_id?: string | null;
+          type?: string | null;
+          release_year?: number | null;
           created_at?: string;
           last_updated_at?: string;
           play_count?: number;
           likes_count?: number;
+          tags?: string[] | null;
+          is_public?: boolean | null;
+          creator_id?: string | null;
         };
       };
       playlist_songs: {

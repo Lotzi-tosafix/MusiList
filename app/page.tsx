@@ -1,37 +1,36 @@
 import {
   getTrendingPlaylists,
-  getRecentPlaylists,
+  getRecentAlbums,
+  getTopArtists,
   getTrendingSongs,
-  getRecentSongs,
 } from "@/lib/api";
 import PlaylistCarousel from "@/components/PlaylistCarousel";
 import SongCarousel from "@/components/SongCarousel";
+import ArtistCarousel from "@/components/ArtistCarousel";
 
 export const dynamic = "force-dynamic";
 
 export default async function Home() {
-  const [trendingPlaylists, recentPlaylists, trendingSongs, recentSongs] =
+  const [trendingPlaylists, recentAlbums, topArtists, trendingSongs] =
     await Promise.all([
       getTrendingPlaylists(),
-      getRecentPlaylists(),
+      getRecentAlbums(),
+      getTopArtists(),
       getTrendingSongs(),
-      getRecentSongs(),
     ]);
 
   return (
     <div className="space-y-16 py-6">
-      {/* New Songs Carousel */}
-      <SongCarousel
-        songs={recentSongs}
-        title="שירים חדשים"
-        type="recent"
-        viewAllHref="/songs?sort=recent"
+      {/* Top Artists Carousel */}
+      <ArtistCarousel
+        artists={topArtists}
+        title="אמנים מובילים"
       />
 
-      {/* Recent Playlists Carousel */}
+      {/* Recent Albums Carousel */}
       <PlaylistCarousel
-        playlists={recentPlaylists}
-        title="פלייליסטים חדשים"
+        playlists={recentAlbums}
+        title="אלבומים חדשים"
         type="recent"
         viewAllHref="/playlists?sort=recent"
       />
