@@ -45,26 +45,77 @@ export async function POST(req: Request) {
     let totalSongsAdded = 0;
     let totalAlbumsAdded = 0;
 
-    // 2. Extract Top Songs
-    const topSongsSection = artist.sections?.find((s: any) => s.type === 'MusicShelf' && s.title?.toString() === 'Top songs');
-    if (topSongsSection && topSongsSection.contents) {
-      const topSongs = topSongsSection.contents.map((item: any) => {
-        // Find highest res thumbnail
-        const thumbs = item.thumbnail?.contents || [];
+    // 2. Extract Top Songs (נסה למשוך את כל השירים אם יש פונקציה זמינה)
+    let allTopSongs: any[] = [];
+    
+    try {
+      // בגרסאות חדשות של youtubei יש פונקציה שמביאה את כל השירים של האמן
+      if ((artist as any).getAllSongs) {
+        const fullSongsList = await (artist as any).getAllSongs();
+        allTopSongs = fullSongsList.contents || (fullSongsList as any) || [];
+      }
+    } catch (e) {
+      console.log("Could not fetch ALL songs directly, falling back to shelf preview");
+    }
+
+    // אם הפונקציה לא הצליחה, ניקח לפחות את אלו שמוצגים במדף
+    if (allTopSongs.length === 0) {
+      const topSongsSection = artist.sections?.find((s: any) => s.type === 'MusicShelf' && (s.title?.toString() === 'Top songs' || s.header?.title?.toString() === 'Top songs'));
+      if (topSongsSection && topSongsSection.contents) {
+        allTopSongs = topSongsSection.contents;
+      }
+    }
+
+    if (allTopSongs.length > 0) {
+      const topSongs = allTopSongs.map((item: any) => {
+        const thumbs = item.thumbnail?.contents || item.thumbnails || [];
         const thumbUrl = thumbs.length > 0 ? thumbs[thumbs.length - 1].url : null;
         
         return {
-          youtube_id: item.id,
-          title: item.title,
+          youtube_id: item.id || item.videoId,
+          title: Array.isArray(item.title) ? item.title[0]?.text : item.title?.toString(),
           thumbnail_url: thumbUrl,
-          duration: 0, // Duration might need to be parsed from string if available, skipping for simplicity or setting 0
+          duration: 0,
           artist_id: dbArtistId,
         };
-      }).filter((s: any) => s.youtube_id); // Ensure we have ID
+      }).filter((s: any) => s.youtube_id && s.title);
 
       if (topSongs.length > 0) {
         await supabase.from('songs').upsert(topSongs as any, { onConflict: 'youtube_id', ignoreDuplicates: true });
         totalSongsAdded += topSongs.length;
+      }
+    }
+
+    // NEW: 2.5 Extract Videos (Music Videos, Live performances)
+    const videosSection = artist.sections?.find((s: any) => 
+      s.type === 'MusicCarouselShelf' && 
+      s.header?.title?.toString() === 'Videos'
+    );
+    
+    if (videosSection && (videosSection as any).contents) {
+      const videos = (videosSection as any).contents.map((item: any) => {
+        const thumbs = item.thumbnail?.contents || item.thumbnails || [];
+        const thumbUrl = thumbs.length > 0 ? thumbs[thumbs.length - 1].url : null;
+        
+        return {
+          youtube_id: item.id || item.videoId,
+          title: Array.isArray(item.title) ? item.title[0]?.text : item.title?.toString() || 'Unknown Title',
+          thumbnail_url: thumbUrl,
+          duration: 0,
+          artist_id: dbArtistId,
+        };
+      }).filter((s: any) => s.youtube_id);
+
+      if (videos.length > 0) {
+        // נוסיף את הוידאו ישירות כ"שירים" של האמן
+        const { data: insertedVideos, error: vidErr } = await supabase
+          .from('songs')
+          .upsert(videos as any, { onConflict: 'youtube_id', ignoreDuplicates: true })
+          .select();
+        
+        if (!vidErr && insertedVideos) {
+          totalSongsAdded += insertedVideos.length;
+        }
       }
     }
 
