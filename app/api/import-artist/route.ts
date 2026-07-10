@@ -2,6 +2,47 @@ import { NextResponse } from 'next/server';
 import { Innertube } from 'youtubei.js';
 import { supabase } from '@/lib/supabase';
 
+function upscaleThumbnail(url: string | null | undefined): string | null {
+  if (!url) return null;
+  return url
+    .replace(/=s\d+-[a-zA-Z0-9-]+/, '=s512-c')
+    .replace(/=w\d+-h\d+-[a-zA-Z0-9-]+/, '=w512-h512-p-l90-rj')
+    .replace(/\/s\d+\//, '/s512/')
+    .replace(/w\d+-h\d+/, 'w512-h512');
+}
+
+async function enrichWithAlternateVideoId(yt: Innertube, songs: any[]) {
+  const BATCH_SIZE = 10;
+  const enrichedSongs = [];
+  
+  for (let i = 0; i < songs.length; i += BATCH_SIZE) {
+    const batch = songs.slice(i, i + BATCH_SIZE);
+    
+    const promises = batch.map(async (song) => {
+      let alternate_video_id = null;
+      try {
+        const info = await yt.music.getInfo(song.youtube_id);
+        const videoToggleId = (info as any).basic_info?.video_id_alternate || 
+                              (info as any).upnext?.video_id; 
+        
+        if (videoToggleId && videoToggleId !== song.youtube_id) {
+          alternate_video_id = videoToggleId;
+        }
+      } catch (err) {
+        console.error(`Failed to get advanced info for track ${song.youtube_id}`, err);
+      }
+      return {
+        ...song,
+        alternate_video_id
+      };
+    });
+    
+    const results = await Promise.all(promises);
+    enrichedSongs.push(...results);
+  }
+  return enrichedSongs;
+}
+
 export async function POST(req: Request) {
   try {
     const { artistId } = await req.json();
@@ -24,7 +65,7 @@ export async function POST(req: Request) {
     let bannerUrl = '';
     const thumbnails = (artist.header as any)?.thumbnail?.contents || [];
     if (thumbnails.length > 0) {
-      avatarUrl = thumbnails[thumbnails.length - 1]?.url || ''; // Get highest res
+      avatarUrl = upscaleThumbnail(thumbnails[thumbnails.length - 1]?.url) || ''; // Get highest res
     }
     // Note: banner isn't easily exposed without parsing deeper, we can use avatar for now or leave banner empty if not found.
 
@@ -69,7 +110,7 @@ export async function POST(req: Request) {
     if (allTopSongs.length > 0) {
       const topSongs = allTopSongs.map((item: any) => {
         const thumbs = item.thumbnail?.contents || item.thumbnails || [];
-        const thumbUrl = thumbs.length > 0 ? thumbs[thumbs.length - 1].url : null;
+        const thumbUrl = thumbs.length > 0 ? upscaleThumbnail(thumbs[thumbs.length - 1].url) : null;
         
         return {
           youtube_id: item.id || item.videoId,
@@ -81,8 +122,9 @@ export async function POST(req: Request) {
       }).filter((s: any) => s.youtube_id && s.title);
 
       if (topSongs.length > 0) {
-        await supabase.from('songs').upsert(topSongs as any, { onConflict: 'youtube_id', ignoreDuplicates: true });
-        totalSongsAdded += topSongs.length;
+        const enrichedTopSongs = await enrichWithAlternateVideoId(yt, topSongs);
+        await supabase.from('songs').upsert(enrichedTopSongs as any, { onConflict: 'youtube_id', ignoreDuplicates: true });
+        totalSongsAdded += enrichedTopSongs.length;
       }
     }
 
@@ -95,7 +137,7 @@ export async function POST(req: Request) {
     if (videosSection && (videosSection as any).contents) {
       const videos = (videosSection as any).contents.map((item: any) => {
         const thumbs = item.thumbnail?.contents || item.thumbnails || [];
-        const thumbUrl = thumbs.length > 0 ? thumbs[thumbs.length - 1].url : null;
+        const thumbUrl = thumbs.length > 0 ? upscaleThumbnail(thumbs[thumbs.length - 1].url) : null;
         
         return {
           youtube_id: item.id || item.videoId,
@@ -134,7 +176,7 @@ export async function POST(req: Request) {
         
         // Find highest res thumbnail
         const thumbs = item.thumbnail || [];
-        const thumbUrl = thumbs.length > 0 ? thumbs[thumbs.length - 1].url : null;
+        const thumbUrl = thumbs.length > 0 ? upscaleThumbnail(thumbs[thumbs.length - 1].url) : null;
         const releaseYear = item.year ? parseInt(item.year, 10) : null;
         const albumTitle = Array.isArray(item.title) ? item.title[0]?.text : item.title?.toString();
         
@@ -164,7 +206,7 @@ export async function POST(req: Request) {
           if (albumDetails && albumDetails.contents) {
             const albumSongs = albumDetails.contents.map((songItem: any, index: number) => {
               const sThumbs = songItem.thumbnail?.contents || [];
-              const sThumbUrl = sThumbs.length > 0 ? sThumbs[sThumbs.length - 1].url : thumbUrl;
+              const sThumbUrl = sThumbs.length > 0 ? upscaleThumbnail(sThumbs[sThumbs.length - 1].url) : thumbUrl;
               return {
                 youtube_id: songItem.id,
                 title: songItem.title,
@@ -175,9 +217,10 @@ export async function POST(req: Request) {
             }).filter((s: any) => s.youtube_id);
 
             if (albumSongs.length > 0) {
+              const enrichedAlbumSongs = await enrichWithAlternateVideoId(yt, albumSongs);
               const { data: insertedSongs, error: songErr } = await supabase
                 .from('songs')
-                .upsert(albumSongs as any, { onConflict: 'youtube_id' })
+                .upsert(enrichedAlbumSongs as any, { onConflict: 'youtube_id' })
                 .select();
                 
               if (!songErr && insertedSongs) {

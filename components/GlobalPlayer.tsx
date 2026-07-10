@@ -228,22 +228,27 @@ function PersistentVideo() {
     volume,
     videoAnchor,
     playNext,
+    preferVideo,
   } = usePlayer();
 
   const currentVideo = videos[currentIndex];
   const containerRef = useRef<HTMLDivElement>(null);
   const lastVideoIdRef = useRef<string | null>(null);
 
+  const getVideoId = (video: any) => {
+    if (!video) return null;
+    return (preferVideo && video.alternate_video_id) ? video.alternate_video_id : video.youtube_id;
+  };
+
   useEffect(() => {
-    if (
-      playerTarget &&
-      currentVideo &&
-      currentVideo.youtube_id !== lastVideoIdRef.current
-    ) {
-      playerTarget.loadVideoById(currentVideo.youtube_id);
-      lastVideoIdRef.current = currentVideo.youtube_id;
+    if (playerTarget && currentVideo) {
+      const targetId = getVideoId(currentVideo);
+      if (targetId && targetId !== lastVideoIdRef.current) {
+        playerTarget.loadVideoById(targetId);
+        lastVideoIdRef.current = targetId;
+      }
     }
-  }, [currentVideo, playerTarget]);
+  }, [currentVideo, playerTarget, preferVideo]);
 
   useLayoutEffect(() => {
     let animationFrameId: number;
@@ -287,7 +292,7 @@ function PersistentVideo() {
       }}
     >
       <YouTube
-        videoId={currentVideo.youtube_id}
+        videoId={getVideoId(currentVideo) || undefined}
         opts={{
           width: "100%",
           height: "100%",
@@ -303,7 +308,7 @@ function PersistentVideo() {
         onReady={(e) => {
           setPlayerTarget(e.target);
           e.target.setVolume(volume);
-          lastVideoIdRef.current = currentVideo.youtube_id;
+          lastVideoIdRef.current = getVideoId(currentVideo);
           if (isPlaying) {
             e.target.playVideo();
           }
@@ -313,9 +318,11 @@ function PersistentVideo() {
           if (e.data === 2) setIsPlaying(false);
           if (e.data === 0) {
             if (currentIndex < videos.length - 1) {
-              const nextId = videos[currentIndex + 1].youtube_id;
-              e.target.loadVideoById(nextId);
-              lastVideoIdRef.current = nextId;
+              const nextId = getVideoId(videos[currentIndex + 1]);
+              if (nextId) {
+                e.target.loadVideoById(nextId);
+                lastVideoIdRef.current = nextId;
+              }
             }
             playNext();
           }
