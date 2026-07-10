@@ -26,15 +26,18 @@ export default async function ArtistPage({
     notFound();
   }
 
-  // 2. Fetch artist top songs
-  const { data: topSongs } = await supabase
+  // 2. Fetch all songs and separate them by type
+  const { data: allSongs } = await supabase
     .from("songs")
     .select("*")
     .eq("artist_id", id)
-    .order("play_count", { ascending: false })
-    .limit(10);
+    .order("play_count", { ascending: false });
 
-  // 3. Fetch artist albums & singles
+  // הפרדה חכמה בין שירים רשמיים לקליפים (וידאו)
+  const officialSongs = (allSongs || []).filter((s) => (s as any).item_type === 'song');
+  const videoClips = (allSongs || []).filter((s) => (s as any).item_type === 'video');
+
+  // 3. Fetch all playlists/albums
   const { data: releases } = await supabase
     .from("playlists")
     .select(`
@@ -48,15 +51,17 @@ export default async function ArtistPage({
     .eq("artist_id", id)
     .order("release_year", { ascending: false });
 
-  const playlists = (releases || []).map((pl: any) => {
+  const formattedPlaylists = (releases || []).map((pl: any) => {
     const songs = (pl.playlist_songs || [])
       .map((ps: any) => ({ ...ps.songs, position: ps.position }))
       .sort((a: any, b: any) => a.position - b.position);
     return { ...pl, songs, artist: pl.artist };
   });
 
-  const albums = playlists.filter((p) => p.type === 'album');
-  const singles = playlists.filter((p) => p.type === 'single' || p.type === 'ep');
+  // הפרדה בין אלבומים, סינגלים ופלייליסטים רגילים
+  const albums = formattedPlaylists.filter((p) => p.type === 'album');
+  const singles = formattedPlaylists.filter((p) => p.type === 'single' || p.type === 'ep');
+  const regularPlaylists = formattedPlaylists.filter((p) => p.type === 'playlist');
 
   return (
     <div className="pb-20">
@@ -94,12 +99,21 @@ export default async function ArtistPage({
       </div>
 
       <div className="mt-8 space-y-12">
-        {/* Top Songs */}
-        {topSongs && topSongs.length > 0 && (
+        {/* Official Songs (Audio) */}
+        {officialSongs.length > 0 && (
           <SongCarousel
-            songs={topSongs}
-            title="שירים מובילים"
+            songs={officialSongs.slice(0, 15)}
+            title="שירים (אודיו רשמי)"
             type="trending"
+          />
+        )}
+
+        {/* Video Clips */}
+        {videoClips.length > 0 && (
+          <SongCarousel
+            songs={videoClips.slice(0, 15)}
+            title="קליפים והופעות חיות"
+            type="recent"
           />
         )}
 
@@ -109,7 +123,6 @@ export default async function ArtistPage({
             playlists={albums}
             title="אלבומים"
             type="recent"
-            viewAllHref={`/search?q=${encodeURIComponent(artist.name)}`}
           />
         )}
 
@@ -119,7 +132,15 @@ export default async function ArtistPage({
             playlists={singles}
             title="סינגלים ו-EPs"
             type="recent"
-            viewAllHref={`/search?q=${encodeURIComponent(artist.name)}`}
+          />
+        )}
+
+        {/* Regular YouTube Playlists */}
+        {regularPlaylists.length > 0 && (
+          <PlaylistCarousel
+            playlists={regularPlaylists}
+            title="פלייליסטים ביוטיוב"
+            type="trending"
           />
         )}
       </div>

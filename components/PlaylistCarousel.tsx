@@ -16,7 +16,7 @@ interface PlaylistCarouselProps {
   playlists: PlaylistWithSongs[];
   title: string;
   type: "recent" | "trending";
-  viewAllHref: string;
+  viewAllHref?: string;
 }
 
 export default function PlaylistCarousel({
@@ -53,15 +53,17 @@ export default function PlaylistCarousel({
           {title}
         </h2>
 
-        <div className="flex items-center gap-3">
-          <Link
-            href={viewAllHref}
-            className="text-xs sm:text-sm font-medium text-violet-600 dark:text-violet-400 hover:text-violet-700 dark:hover:text-violet-300 transition-colors flex items-center gap-1 bg-slate-100 dark:bg-slate-900/60 hover:bg-slate-200 dark:hover:bg-slate-900 px-4 py-2 rounded-full border border-slate-200 dark:border-slate-800/80"
-          >
-            <span>צפה בהכל</span>
-            <ChevronLeft className="w-4 h-4" />
-          </Link>
-        </div>
+        {viewAllHref && (
+          <div className="flex items-center gap-3">
+            <Link
+              href={viewAllHref}
+              className="text-xs sm:text-sm font-medium text-violet-600 dark:text-violet-400 hover:text-violet-700 dark:hover:text-violet-300 transition-colors flex items-center gap-1 bg-slate-100 dark:bg-slate-900/60 hover:bg-slate-200 dark:hover:bg-slate-900 px-4 py-2 rounded-full border border-slate-200 dark:border-slate-800/80"
+            >
+              <span>צפה בהכל</span>
+              <ChevronLeft className="w-4 h-4" />
+            </Link>
+          </div>
+        )}
       </div>
 
       <div className="relative group/carousel">
