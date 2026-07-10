@@ -28,7 +28,6 @@ import {
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { PlaylistWithSongs } from "@/lib/api";
-import { usePlayer } from "@/lib/PlayerContext";
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -39,8 +38,6 @@ export default function ProfilePage() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
-
-  const { preferVideo, togglePreferVideo } = usePlayer();
 
   const fetchUserPlaylists = async (userId: string) => {
     setPlaylistsLoading(true);
@@ -383,38 +380,6 @@ export default function ProfilePage() {
                 })}
               </div>
             )}
-          </div>
-        </div>
-
-        {/* System Settings Section */}
-        <div className="bg-white dark:bg-slate-900/40 rounded-3xl border border-slate-200 dark:border-slate-800 p-6 shadow-lg">
-          <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2 mb-6 font-display">
-            <Settings className="w-5 h-5 text-violet-500" />
-            הגדרות מערכת
-          </h2>
-          <div className="space-y-4">
-            <label className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-900/60 rounded-xl border border-slate-200 dark:border-slate-800 cursor-pointer hover:border-violet-500/30 transition-colors">
-              <div className="flex items-center gap-4">
-                <div className="w-10 h-10 rounded-full bg-violet-100 dark:bg-violet-900/30 flex items-center justify-center">
-                  <Tv className="w-5 h-5 text-violet-600 dark:text-violet-400" />
-                </div>
-                <div>
-                  <h3 className="font-bold text-slate-900 dark:text-white">העדף גרסת וידאו</h3>
-                  <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
-                    הפעל כדי לנגן תמיד את הקליפ הרשמי של השיר (אם קיים) במקום את גרסת האודיו. מומלץ למשתמשי נטפרי כדי לחסוך המתנה לבדיקת קבצי שמע.
-                  </p>
-                </div>
-              </div>
-              <div className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-violet-500 focus:ring-offset-2 bg-slate-200 dark:bg-slate-700">
-                <input
-                  type="checkbox"
-                  className="sr-only"
-                  checked={preferVideo}
-                  onChange={(e) => togglePreferVideo(e.target.checked)}
-                />
-                <span className={`inline-block h-4 w-4 transform rounded-full transition ${preferVideo ? "-translate-x-1 bg-violet-600" : "-translate-x-6 bg-slate-400 dark:bg-slate-500"}`} />
-              </div>
-            </label>
           </div>
         </div>
 

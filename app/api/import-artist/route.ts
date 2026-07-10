@@ -11,38 +11,6 @@ function upscaleThumbnail(url: string | null | undefined): string | null {
     .replace(/w\d+-h\d+/, 'w512-h512');
 }
 
-async function enrichWithAlternateVideoId(yt: Innertube, songs: any[]) {
-  const BATCH_SIZE = 10;
-  const enrichedSongs = [];
-  
-  for (let i = 0; i < songs.length; i += BATCH_SIZE) {
-    const batch = songs.slice(i, i + BATCH_SIZE);
-    
-    const promises = batch.map(async (song) => {
-      let alternate_video_id = null;
-      try {
-        const info = await yt.music.getInfo(song.youtube_id);
-        const videoToggleId = (info as any).basic_info?.video_id_alternate || 
-                              (info as any).upnext?.video_id; 
-        
-        if (videoToggleId && videoToggleId !== song.youtube_id) {
-          alternate_video_id = videoToggleId;
-        }
-      } catch (err) {
-        console.error(`Failed to get advanced info for track ${song.youtube_id}`, err);
-      }
-      return {
-        ...song,
-        alternate_video_id
-      };
-    });
-    
-    const results = await Promise.all(promises);
-    enrichedSongs.push(...results);
-  }
-  return enrichedSongs;
-}
-
 export async function POST(req: Request) {
   try {
     const { artistId } = await req.json();
@@ -86,6 +54,40 @@ export async function POST(req: Request) {
     let totalSongsAdded = 0;
     let totalAlbumsAdded = 0;
 
+    // NEW: 2.5 Extract Videos (Music Videos, Live performances)
+    const videosSection = artist.sections?.find((s: any) => 
+      s.type === 'MusicCarouselShelf' && 
+      s.header?.title?.toString() === 'Videos'
+    );
+    
+    let allVideos: any[] = [];
+    if (videosSection && (videosSection as any).contents) {
+      allVideos = (videosSection as any).contents.map((item: any) => {
+        const thumbs = item.thumbnail?.contents || item.thumbnails || [];
+        const thumbUrl = thumbs.length > 0 ? upscaleThumbnail(thumbs[thumbs.length - 1].url) : null;
+        
+        return {
+          youtube_id: item.id || item.videoId,
+          title: Array.isArray(item.title) ? item.title[0]?.text : item.title?.toString() || 'Unknown Title',
+          thumbnail_url: thumbUrl,
+          duration: 0,
+          artist_id: dbArtistId,
+        };
+      }).filter((s: any) => s.youtube_id);
+
+      if (allVideos.length > 0) {
+        // נוסיף את הוידאו ישירות כ"שירים" של האמן
+        const { data: insertedVideos, error: vidErr } = await supabase
+          .from('songs')
+          .upsert(allVideos as any, { onConflict: 'youtube_id', ignoreDuplicates: true })
+          .select();
+        
+        if (!vidErr && insertedVideos) {
+          totalSongsAdded += insertedVideos.length;
+        }
+      }
+    }
+
     // 2. Extract Top Songs (נסה למשוך את כל השירים אם יש פונקציה זמינה)
     let allTopSongs: any[] = [];
     
@@ -112,9 +114,23 @@ export async function POST(req: Request) {
         const thumbs = item.thumbnail?.contents || item.thumbnails || [];
         const thumbUrl = thumbs.length > 0 ? upscaleThumbnail(thumbs[thumbs.length - 1].url) : null;
         
+        let finalYoutubeId = item.id || item.videoId;
+        let finalTitle = Array.isArray(item.title) ? item.title[0]?.text : item.title?.toString();
+        
+        if (finalYoutubeId && finalTitle && allVideos.length > 0) {
+          const songTitleLower = finalTitle.toLowerCase();
+          let matchedVideo = allVideos.find(v => v.title.toLowerCase() === songTitleLower);
+          if (!matchedVideo) {
+            matchedVideo = allVideos.find(v => v.title.toLowerCase().includes(songTitleLower));
+          }
+          if (matchedVideo) {
+            finalYoutubeId = matchedVideo.youtube_id;
+          }
+        }
+        
         return {
-          youtube_id: item.id || item.videoId,
-          title: Array.isArray(item.title) ? item.title[0]?.text : item.title?.toString(),
+          youtube_id: finalYoutubeId,
+          title: finalTitle,
           thumbnail_url: thumbUrl,
           duration: 0,
           artist_id: dbArtistId,
@@ -122,42 +138,8 @@ export async function POST(req: Request) {
       }).filter((s: any) => s.youtube_id && s.title);
 
       if (topSongs.length > 0) {
-        const enrichedTopSongs = await enrichWithAlternateVideoId(yt, topSongs);
-        await supabase.from('songs').upsert(enrichedTopSongs as any, { onConflict: 'youtube_id', ignoreDuplicates: true });
-        totalSongsAdded += enrichedTopSongs.length;
-      }
-    }
-
-    // NEW: 2.5 Extract Videos (Music Videos, Live performances)
-    const videosSection = artist.sections?.find((s: any) => 
-      s.type === 'MusicCarouselShelf' && 
-      s.header?.title?.toString() === 'Videos'
-    );
-    
-    if (videosSection && (videosSection as any).contents) {
-      const videos = (videosSection as any).contents.map((item: any) => {
-        const thumbs = item.thumbnail?.contents || item.thumbnails || [];
-        const thumbUrl = thumbs.length > 0 ? upscaleThumbnail(thumbs[thumbs.length - 1].url) : null;
-        
-        return {
-          youtube_id: item.id || item.videoId,
-          title: Array.isArray(item.title) ? item.title[0]?.text : item.title?.toString() || 'Unknown Title',
-          thumbnail_url: thumbUrl,
-          duration: 0,
-          artist_id: dbArtistId,
-        };
-      }).filter((s: any) => s.youtube_id);
-
-      if (videos.length > 0) {
-        // נוסיף את הוידאו ישירות כ"שירים" של האמן
-        const { data: insertedVideos, error: vidErr } = await supabase
-          .from('songs')
-          .upsert(videos as any, { onConflict: 'youtube_id', ignoreDuplicates: true })
-          .select();
-        
-        if (!vidErr && insertedVideos) {
-          totalSongsAdded += insertedVideos.length;
-        }
+        await supabase.from('songs').upsert(topSongs as any, { onConflict: 'youtube_id', ignoreDuplicates: true });
+        totalSongsAdded += topSongs.length;
       }
     }
 
@@ -207,8 +189,24 @@ export async function POST(req: Request) {
             const albumSongs = albumDetails.contents.map((songItem: any, index: number) => {
               const sThumbs = songItem.thumbnail?.contents || [];
               const sThumbUrl = sThumbs.length > 0 ? upscaleThumbnail(sThumbs[sThumbs.length - 1].url) : thumbUrl;
+              
+              let finalYoutubeId = songItem.id;
+              
+              if (finalYoutubeId && songItem.title && allVideos.length > 0) {
+                const songTitleLower = songItem.title.toLowerCase();
+                // Try exact match first
+                let matchedVideo = allVideos.find(v => v.title.toLowerCase() === songTitleLower);
+                if (!matchedVideo) {
+                  // Try partial match
+                  matchedVideo = allVideos.find(v => v.title.toLowerCase().includes(songTitleLower));
+                }
+                if (matchedVideo) {
+                  finalYoutubeId = matchedVideo.youtube_id;
+                }
+              }
+
               return {
-                youtube_id: songItem.id,
+                youtube_id: finalYoutubeId,
                 title: songItem.title,
                 thumbnail_url: sThumbUrl,
                 artist_id: dbArtistId,
@@ -217,10 +215,9 @@ export async function POST(req: Request) {
             }).filter((s: any) => s.youtube_id);
 
             if (albumSongs.length > 0) {
-              const enrichedAlbumSongs = await enrichWithAlternateVideoId(yt, albumSongs);
               const { data: insertedSongs, error: songErr } = await supabase
                 .from('songs')
-                .upsert(enrichedAlbumSongs as any, { onConflict: 'youtube_id' })
+                .upsert(albumSongs as any, { onConflict: 'youtube_id' })
                 .select();
                 
               if (!songErr && insertedSongs) {

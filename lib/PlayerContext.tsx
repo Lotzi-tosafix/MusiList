@@ -27,8 +27,6 @@ interface PlayerContextType {
   videoAnchor: HTMLElement | null;
   setVideoAnchor: (el: HTMLElement | null) => void;
   updateGlobalPlaylist: (newVideos: SongRow[], newIndex: number) => void;
-  preferVideo: boolean;
-  togglePreferVideo: (val: boolean) => void;
 }
 
 const PlayerContext = createContext<PlayerContextType | undefined>(undefined);
@@ -45,25 +43,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const [volume, setVolume] = useState<number>(100);
   const [isLocalPlayerActive, setIsLocalPlayerActive] = useState<boolean>(false);
   const [videoAnchor, setVideoAnchor] = useState<HTMLElement | null>(null);
-  const [preferVideo, setPreferVideo] = useState<boolean>(false);
 
   // Tracking 90% play
   const hasTrackedPlay = useRef<boolean>(false);
   const sessionPlayedCount = useRef<number>(0);
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem('preferVideo');
-      if (stored === 'true') setPreferVideo(true);
-    }
-  }, []);
-
-  const togglePreferVideo = (val: boolean) => {
-    setPreferVideo(val);
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('preferVideo', String(val));
-    }
-  };
 
   useEffect(() => {
     hasTrackedPlay.current = false;
@@ -171,9 +154,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         setIsLocalPlayerActive,
         videoAnchor,
         setVideoAnchor,
-        updateGlobalPlaylist,
-        preferVideo,
-        togglePreferVideo
+        updateGlobalPlaylist
       }}
     >
       {children}

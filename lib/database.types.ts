@@ -45,7 +45,6 @@ export interface Database {
         Row: {
           id: string;
           youtube_id: string;
-          alternate_video_id?: string | null;
           title: string;
           thumbnail_url: string | null;
           duration: number;
@@ -59,7 +58,6 @@ export interface Database {
         Insert: {
           id?: string;
           youtube_id: string;
-          alternate_video_id?: string | null;
           title: string;
           thumbnail_url?: string | null;
           duration?: number;
@@ -73,7 +71,6 @@ export interface Database {
         Update: {
           id?: string;
           youtube_id?: string;
-          alternate_video_id?: string | null;
           title?: string;
           thumbnail_url?: string | null;
           duration?: number;
