@@ -10,24 +10,15 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: 'Query is required' }, { status: 400 });
     }
 
-    const yt = await Innertube.create();
+    const yt = await Innertube.create({ lang: 'en' });
     
-    // Search for artists specifically
-    const results = await yt.music.search(query, { type: 'artist' });
-    
-    const artists = results.artists?.contents?.map((artist: any) => {
-      // Get highest resolution thumbnail
+    // Search for artists in YT Music
+    const musicResults = await yt.music.search(query, { type: 'artist' });
+    const musicArtists = musicResults.artists?.contents?.map((artist: any) => {
       let thumb = artist.thumbnails?.[artist.thumbnails.length - 1]?.url || '';
-      
-      // Upscale thumbnail to high resolution if it's from google/youtube servers
       if (thumb) {
-        thumb = thumb
-          .replace(/=s\d+-[a-zA-Z0-9-]+/, '=s512-c')
-          .replace(/=w\d+-h\d+-[a-zA-Z0-9-]+/, '=w512-h512-p-l90-rj')
-          .replace(/\/s\d+\//, '/s512/')
-          .replace(/w\d+-h\d+/, 'w512-h512');
+        thumb = thumb.replace(/=s\d+-[a-zA-Z0-9-]+/, '=s512-c').replace(/=w\d+-h\d+-[a-zA-Z0-9-]+/, '=w512-h512-p-l90-rj').replace(/\/s\d+\//, '/s512/').replace(/w\d+-h\d+/, 'w512-h512');
       }
-
       return {
         id: artist.id,
         name: artist.name,
@@ -36,9 +27,27 @@ export async function GET(req: Request) {
       };
     }) || [];
 
-    return NextResponse.json({ artists: artists.slice(0, 5) }); // Return top 5 matches
+    // Search for channels in regular YouTube
+    const channelResults = await yt.search(query, { type: 'channel' });
+    const regularChannels = channelResults.channels?.map((channel: any) => {
+      let thumb = channel.author?.thumbnails?.[channel.author?.thumbnails.length - 1]?.url || '';
+      if (thumb) {
+        thumb = thumb.replace(/=s\d+-[a-zA-Z0-9-]+/, '=s512-c').replace(/=w\d+-h\d+-[a-zA-Z0-9-]+/, '=w512-h512-p-l90-rj').replace(/\/s\d+\//, '/s512/').replace(/w\d+-h\d+/, 'w512-h512');
+      }
+      return {
+        id: channel.id || channel.author?.channel_id || channel.channel_id,
+        name: channel.author?.name || channel.title?.toString(),
+        thumbnail: thumb,
+        subscribers: channel.subscribers?.toString() || channel.video_count?.toString() || '',
+      };
+    }) || [];
+
+    return NextResponse.json({ 
+      musicArtists: musicArtists.slice(0, 5),
+      regularChannels: regularChannels.slice(0, 5)
+    });
   } catch (err: any) {
-    console.error('Error searching YouTube Music artists:', err);
+    console.error('Error searching YouTube artists:', err);
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }

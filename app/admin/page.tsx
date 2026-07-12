@@ -13,6 +13,7 @@ import {
   Music,
   Users,
   Search,
+  ExternalLink,
 } from "lucide-react";
 
 export default function AdminDashboard() {
@@ -30,7 +31,9 @@ export default function AdminDashboard() {
 
   // States for searching
   const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [searchResults, setSearchResults] = useState<{ musicArtists: any[]; regularChannels: any[] } | null>(null);
+  const [selectedMusicArtist, setSelectedMusicArtist] = useState<string | null>(null);
+  const [selectedRegularChannel, setSelectedRegularChannel] = useState<string | null>(null);
   const [isSearching, setIsSearching] = useState(false);
 
   // Stats & Data
@@ -82,15 +85,20 @@ export default function AdminDashboard() {
   const handleSearchArtist = async () => {
     if (!searchQuery.trim()) return;
     setIsSearching(true);
-    setSearchResults([]);
+    setSearchResults(null);
+    setSelectedMusicArtist(null);
+    setSelectedRegularChannel(null);
     setImportMessage(null);
 
     try {
       const response = await fetch(`/api/search-artist-yt?q=${encodeURIComponent(searchQuery)}`);
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Failed to search");
-      setSearchResults(data.artists || []);
-      if (data.artists?.length === 0) {
+      setSearchResults({
+        musicArtists: data.musicArtists || [],
+        regularChannels: data.regularChannels || []
+      });
+      if (data.musicArtists?.length === 0 && data.regularChannels?.length === 0) {
         setImportMessage({ text: "לא נמצאו תוצאות", type: "error" });
       }
     } catch (err: any) {
@@ -100,7 +108,7 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleImportArtist = async (artistIdToImport?: string) => {
+  const handleImportArtist = async (artistIdToImport?: string, regularChannelIdToImport?: string) => {
     const finalId = typeof artistIdToImport === 'string' ? artistIdToImport : importUrl;
     if (!finalId) return;
     setImporting(true);
@@ -130,7 +138,10 @@ export default function AdminDashboard() {
       const response = await fetch("/api/import-artist", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ artistId: parsedId }),
+        body: JSON.stringify({ 
+          artistId: parsedId,
+          regularChannelId: typeof regularChannelIdToImport === 'string' ? regularChannelIdToImport : null
+        }),
       });
 
       const data = await response.json();
@@ -150,6 +161,14 @@ export default function AdminDashboard() {
     } finally {
       setImporting(false);
     }
+  };
+
+  const handleImportSelected = () => {
+    if (!selectedMusicArtist) {
+      setImportMessage({ text: "יש לבחור אמן מיוטיוב מיוזיק (טור ימני) כדי להמשיך", type: "error" });
+      return;
+    }
+    handleImportArtist(selectedMusicArtist, selectedRegularChannel || undefined);
   };
 
   const handleDeletePlaylist = async (id: string) => {
@@ -255,99 +274,165 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="bg-white dark:bg-slate-900/40 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
-          <h2 className="text-lg font-bold text-slate-900 dark:text-white mb-4">
-            חיפוש אמן להוספה (מומלץ)
-          </h2>
-          <div className="flex gap-4 items-start mb-4">
-            <div className="flex-1 relative">
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleSearchArtist()}
-                placeholder='חפש אמן לייבוא (לדוגמה: "ישי ריבו")'
-                className="w-full pl-10 pr-4 py-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-violet-500 focus:border-transparent text-right text-sm"
-              />
-              <Search className="absolute left-3 top-3 text-slate-400 w-5 h-5" />
-            </div>
-            <button
-              onClick={handleSearchArtist}
-              disabled={isSearching || !searchQuery.trim()}
-              className="px-6 py-3 bg-violet-600 hover:bg-violet-700 disabled:bg-slate-300 disabled:text-slate-500 text-white font-bold rounded-xl flex items-center gap-2 transition-colors whitespace-nowrap"
-            >
-              {isSearching ? <Loader2 className="w-5 h-5 animate-spin" /> : "חפש"}
-            </button>
+      <div className="bg-white dark:bg-slate-900/40 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+        <h2 className="text-lg font-bold text-slate-900 dark:text-white mb-4">
+          חיפוש אמן להוספה
+        </h2>
+        <div className="flex gap-4 items-start mb-4">
+          <div className="flex-1 relative">
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleSearchArtist()}
+              placeholder='חפש אמן לייבוא (לדוגמה: "ישי ריבו")'
+              className="w-full pl-10 pr-4 py-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-violet-500 focus:border-transparent text-right text-sm"
+            />
+            <Search className="absolute left-3 top-3 text-slate-400 w-5 h-5" />
           </div>
-          {searchResults.length > 0 && (
-            <div className="space-y-4 mt-4 max-h-[500px] overflow-y-auto custom-scrollbar pr-1">
-              {searchResults.map((artist) => (
-                <div key={artist.id} className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/30 hover:border-violet-500/30 dark:hover:border-violet-500/30 transition-all shadow-sm">
-                  <div className="flex flex-col sm:flex-row items-center gap-4 text-center sm:text-right w-full sm:w-auto">
-                    {artist.thumbnail ? (
-                      <div className="relative w-20 h-20 md:w-24 md:h-24 rounded-full overflow-hidden border-2 border-violet-500/20 shadow-md group shrink-0">
-                        <img 
-                          src={artist.thumbnail} 
-                          alt={artist.name} 
-                          className="w-full h-full object-cover group-hover:scale-115 transition-transform duration-300"
-                        />
-                      </div>
-                    ) : (
-                      <div className="w-20 h-20 md:w-24 md:h-24 rounded-full bg-slate-200 dark:bg-slate-800 flex items-center justify-center border border-slate-300 dark:border-slate-700 shrink-0 shadow-inner">
-                        <Users className="w-10 h-10 text-slate-400" />
-                      </div>
-                    )}
-                    <div>
-                      <p className="font-extrabold text-base md:text-lg text-slate-900 dark:text-white mb-1">{artist.name}</p>
-                      {artist.subscribers && (
-                        <p className="text-xs md:text-sm text-slate-500 dark:text-slate-400 font-medium">
-                          {artist.subscribers}
-                        </p>
-                      )}
-                      <p className="text-[10px] font-mono text-slate-400 dark:text-slate-500 mt-1 truncate max-w-[200px] sm:max-w-xs" dir="ltr">
-                        ID: {artist.id}
-                      </p>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => handleImportArtist(artist.id)}
-                    disabled={importing}
-                    className="w-full sm:w-auto px-5 py-2.5 text-sm font-bold rounded-xl bg-violet-600 hover:bg-violet-700 disabled:bg-slate-300 disabled:text-slate-500 text-white shadow-md shadow-violet-600/10 hover:shadow-violet-600/20 transition-all cursor-pointer whitespace-nowrap shrink-0"
-                  >
-                    ייבא אמן זה
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
+          <button
+            onClick={handleSearchArtist}
+            disabled={isSearching || !searchQuery.trim()}
+            className="px-6 py-3 bg-violet-600 hover:bg-violet-700 disabled:bg-slate-300 disabled:text-slate-500 text-white font-bold rounded-xl flex items-center gap-2 transition-colors whitespace-nowrap"
+          >
+            {isSearching ? <Loader2 className="w-5 h-5 animate-spin" /> : "חפש"}
+          </button>
         </div>
+        {searchResults && (
+          <div className="mt-4 animate-fade-in">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              
+              {/* יוטיוב מיוזיק - חובה */}
+              <div className="bg-slate-50 dark:bg-slate-900/30 p-4 rounded-xl border border-slate-200 dark:border-slate-800">
+                <h3 className="font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-2 justify-between">
+                  <span className="flex items-center gap-2">
+                    <Music className="w-5 h-5 text-violet-500" />
+                    תוצאות YouTube Music <span className="text-xs font-normal text-red-500">(חובה)</span>
+                  </span>
+                </h3>
+                <div className="space-y-3 max-h-[400px] overflow-y-auto custom-scrollbar pr-1">
+                  {searchResults.musicArtists.length > 0 ? (
+                    searchResults.musicArtists.map((artist) => (
+                      <div 
+                        key={artist.id} 
+                        className={`flex items-center justify-between gap-3 p-3 rounded-xl border transition-all cursor-pointer ${
+                          selectedMusicArtist === artist.id 
+                            ? 'border-violet-500 bg-violet-50 dark:bg-violet-900/20' 
+                            : 'border-transparent hover:border-slate-200 dark:hover:border-slate-700 hover:bg-white dark:hover:bg-slate-800'
+                        }`}
+                        onClick={() => setSelectedMusicArtist(artist.id)}
+                      >
+                        <div className="flex items-center gap-3 min-w-0 flex-1">
+                          <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${
+                            selectedMusicArtist === artist.id ? 'border-violet-500' : 'border-slate-300 dark:border-slate-600'
+                          }`}>
+                            {selectedMusicArtist === artist.id && <div className="w-2.5 h-2.5 bg-violet-500 rounded-full" />}
+                          </div>
+                          
+                          {artist.thumbnail ? (
+                            <img src={artist.thumbnail} alt={artist.name} className="w-12 h-12 rounded-full object-cover shrink-0" />
+                          ) : (
+                            <div className="w-12 h-12 rounded-full bg-slate-200 dark:bg-slate-800 flex items-center justify-center shrink-0">
+                              <Users className="w-6 h-6 text-slate-400" />
+                            </div>
+                          )}
+                          
+                          <div className="flex-1 min-w-0 text-right">
+                            <p className="font-bold text-sm text-slate-900 dark:text-white truncate">{artist.name}</p>
+                            {artist.subscribers && <p className="text-xs text-slate-500 dark:text-slate-400 truncate">{artist.subscribers}</p>}
+                          </div>
+                        </div>
 
-        <div className="bg-white dark:bg-slate-900/40 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
-          <h2 className="text-lg font-bold text-slate-900 dark:text-white mb-4">
-            הזנה ישירה (למתקדמים)
-          </h2>
-          <div className="flex flex-col gap-4">
-            <div className="relative">
-              <input
-                type="text"
-                value={importUrl}
-                onChange={(e) => setImportUrl(e.target.value)}
-                placeholder="קישור/מזהה (לדוגמה: UC...)"
-                className="w-full pl-4 pr-10 py-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-violet-500 focus:border-transparent text-left dir-ltr font-mono text-sm"
-                dir="ltr"
-              />
-              <LinkIcon className="absolute right-3 top-3 text-slate-400 w-5 h-5" />
+                        <a
+                          href={`https://music.youtube.com/channel/${artist.id}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="p-2 text-slate-400 hover:text-violet-600 dark:hover:text-violet-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors shrink-0"
+                          onClick={(e) => e.stopPropagation()}
+                          title="צפה ב-YouTube Music"
+                        >
+                          <ExternalLink className="w-4 h-4" />
+                        </a>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-sm text-slate-500">לא נמצאו תוצאות</p>
+                  )}
+                </div>
+              </div>
+
+              {/* ערוצים רגילים - רשות */}
+              <div className="bg-slate-50 dark:bg-slate-900/30 p-4 rounded-xl border border-slate-200 dark:border-slate-800">
+                <h3 className="font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-2 justify-between">
+                  <span className="flex items-center gap-2">
+                    <ListVideo className="w-5 h-5 text-red-500" />
+                    תוצאות ערוצי YouTube <span className="text-xs font-normal text-slate-500">(לפלייליסטים - מומלץ)</span>
+                  </span>
+                </h3>
+                <div className="space-y-3 max-h-[400px] overflow-y-auto custom-scrollbar pr-1">
+                  {searchResults.regularChannels.length > 0 ? (
+                    searchResults.regularChannels.map((channel) => (
+                      <div 
+                        key={channel.id} 
+                        className={`flex items-center justify-between gap-3 p-3 rounded-xl border transition-all cursor-pointer ${
+                          selectedRegularChannel === channel.id 
+                            ? 'border-red-500 bg-red-50 dark:bg-red-900/10' 
+                            : 'border-transparent hover:border-slate-200 dark:hover:border-slate-700 hover:bg-white dark:hover:bg-slate-800'
+                        }`}
+                        onClick={() => setSelectedRegularChannel(selectedRegularChannel === channel.id ? null : channel.id)}
+                      >
+                        <div className="flex items-center gap-3 min-w-0 flex-1">
+                          <div className={`w-5 h-5 border-2 rounded flex items-center justify-center shrink-0 ${
+                            selectedRegularChannel === channel.id ? 'border-red-500 bg-red-500' : 'border-slate-300 dark:border-slate-600'
+                          }`}>
+                            {selectedRegularChannel === channel.id && <CheckCircle2 className="w-4 h-4 text-white" />}
+                          </div>
+                          
+                          {channel.thumbnail ? (
+                            <img src={channel.thumbnail} alt={channel.name} className="w-12 h-12 rounded-full object-cover shrink-0" />
+                          ) : (
+                            <div className="w-12 h-12 rounded-full bg-slate-200 dark:bg-slate-800 flex items-center justify-center shrink-0">
+                              <Users className="w-6 h-6 text-slate-400" />
+                            </div>
+                          )}
+                          
+                          <div className="flex-1 min-w-0 text-right">
+                            <p className="font-bold text-sm text-slate-900 dark:text-white truncate">{channel.name}</p>
+                            {channel.subscribers && <p className="text-xs text-slate-500 dark:text-slate-400 truncate">{channel.subscribers}</p>}
+                          </div>
+                        </div>
+
+                        <a
+                          href={`https://youtube.com/channel/${channel.id}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="p-2 text-slate-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors shrink-0"
+                          onClick={(e) => e.stopPropagation()}
+                          title="צפה ב-YouTube"
+                        >
+                          <ExternalLink className="w-4 h-4" />
+                        </a>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-sm text-slate-500">לא נמצאו תוצאות</p>
+                  )}
+                </div>
+              </div>
+
             </div>
-            <button
-              onClick={() => handleImportArtist()}
-              disabled={importing || !importUrl}
-              className="w-full px-6 py-3 bg-slate-800 hover:bg-slate-900 dark:bg-slate-700 dark:hover:bg-slate-600 disabled:bg-slate-200 disabled:text-slate-400 dark:disabled:bg-slate-800 dark:disabled:text-slate-600 text-white font-bold rounded-xl flex items-center justify-center gap-2 transition-colors whitespace-nowrap"
-            >
-              {importing ? <Loader2 className="w-5 h-5 animate-spin" /> : "ייבא מקישור"}
-            </button>
+
+            <div className="mt-6 flex justify-end">
+              <button
+                onClick={handleImportSelected}
+                disabled={importing || !selectedMusicArtist}
+                className="px-8 py-3 bg-violet-600 hover:bg-violet-700 disabled:bg-slate-300 disabled:text-slate-500 text-white font-bold rounded-xl shadow-md shadow-violet-600/10 transition-all flex items-center gap-2 cursor-pointer"
+              >
+                {importing ? <Loader2 className="w-5 h-5 animate-spin" /> : "ייבא בחירות"}
+              </button>
+            </div>
           </div>
-        </div>
+        )}
       </div>
       
       {importMessage && (
